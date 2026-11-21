@@ -1,0 +1,491 @@
+@baseUrl = http://localhost:10000/api/auth
+@email = auth-flow-{{$guid}}@example.com
+@password = IssueFlowDemo123
+@apiUrl = http://localhost:10000/api
+@ownerEmail = demo@issueflow.dev
+@memberEmail = project-member-{{$guid}}@example.com
+@declineEmail = decline-member-{{$guid}}@example.com
+@projectId = {{createProject.response.body.$.data.id}}
+@invitationId = {{createInvitation.response.body.$.data.id}}
+@declineInvitationId = {{createDeclineInvitation.response.body.$.data.id}}
+@revokedInvitationId = {{createRevokedInvitation.response.body.$.data.id}}
+@memberId = {{registerProjectMember.response.body.$.data.id}}
+@issueId = {{createFirstIssue.response.body.$.data.id}}
+@secondIssueId = {{createSecondIssue.response.body.$.data.id}}
+@thirdIssueId = {{createThirdIssue.response.body.$.data.id}}
+@commentId = {{createTopLevelComment.response.body.$.data.id}}
+@replyCommentId = {{createReplyComment.response.body.$.data.id}}
+@nestedReplyCommentId = {{createNestedReplyComment.response.body.$.data.id}}
+
+### Failure: authenticated endpoint without a cookie
+GET {{baseUrl}}/me
+
+### Register a user
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "name": "IssueFlow HTTP Test",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Failure: register the same email twice
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "name": "IssueFlow HTTP Test",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Failure: password is missing a number
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "name": "Invalid Password",
+  "email": "invalid-password@example.com",
+  "password": "letters-only"
+}
+
+### Failure: wrong password
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "WrongPassword123"
+}
+
+### Log in with valid credentials
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Get current user (uses the cookie from register or login)
+GET {{baseUrl}}/me
+
+### Get a short-lived Socket.IO token
+GET {{baseUrl}}/socket-token
+
+### Log out and clear the auth cookie
+POST {{baseUrl}}/logout
+
+### Failure: authenticated endpoint after logout
+GET {{baseUrl}}/me
+
+### Failure: project list without a session cookie
+GET {{apiUrl}}/projects
+
+### Register a project member used by the invitation flow
+# @name registerProjectMember
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "name": "Project Member",
+  "email": "{{memberEmail}}",
+  "password": "{{password}}"
+}
+
+### Register a second account to exercise declining an invitation
+# @name registerDeclineMember
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "name": "Declined Invitation User",
+  "email": "{{declineEmail}}",
+  "password": "{{password}}"
+}
+
+### Sign in as the project owner
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{ownerEmail}}",
+  "password": "Demo@12345"
+}
+
+### Failure: invalid project key
+POST {{apiUrl}}/projects
+Content-Type: application/json
+
+{
+  "name": "Invalid Project",
+  "key": "web1"
+}
+
+### Create a project
+# @name createProject
+POST {{apiUrl}}/projects
+Content-Type: application/json
+
+{
+  "name": "Invitation Flow Test",
+  "key": "FLOW",
+  "description": "Exercise project roles and invitations"
+}
+
+### List projects with role and counts
+GET {{apiUrl}}/projects
+
+### Get project details and members
+GET {{apiUrl}}/projects/{{projectId}}
+
+### Update project details as owner
+PATCH {{apiUrl}}/projects/{{projectId}}
+Content-Type: application/json
+
+{
+  "description": "Updated invitation flow test"
+}
+
+### Invite a user as a project member
+# @name createInvitation
+POST {{apiUrl}}/projects/{{projectId}}/invitations
+Content-Type: application/json
+
+{
+  "email": "{{memberEmail}}",
+  "role": "MEMBER"
+}
+
+### Invite a second user who will decline
+# @name createDeclineInvitation
+POST {{apiUrl}}/projects/{{projectId}}/invitations
+Content-Type: application/json
+
+{
+  "email": "{{declineEmail}}",
+  "role": "MEMBER"
+}
+
+### Failure: duplicate pending invitation
+POST {{apiUrl}}/projects/{{projectId}}/invitations
+Content-Type: application/json
+
+{
+  "email": "{{memberEmail}}",
+  "role": "MEMBER"
+}
+
+### List project invitations as owner
+GET {{apiUrl}}/projects/{{projectId}}/invitations
+
+### Sign in as the user who will decline
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{declineEmail}}",
+  "password": "{{password}}"
+}
+
+### List pending invitations for the declining user
+GET {{apiUrl}}/invitations/mine
+
+### Decline the invitation as its recipient
+POST {{apiUrl}}/invitations/{{declineInvitationId}}/decline
+
+### Sign in as the invited user
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{memberEmail}}",
+  "password": "{{password}}"
+}
+
+### List invitations for the signed-in user
+GET {{apiUrl}}/invitations/mine
+
+### Accept the invitation as its recipient
+POST {{apiUrl}}/invitations/{{invitationId}}/accept
+
+### Confirm the invited user is a project member
+GET {{apiUrl}}/projects/{{projectId}}
+
+### Create an issue as a project member
+# @name createFirstIssue
+POST {{apiUrl}}/projects/{{projectId}}/issues
+Content-Type: application/json
+
+{
+  "title": "Member-created accessibility issue",
+  "description": "Improve keyboard support for board navigation.",
+  "type": "BUG",
+  "priority": "HIGH",
+  "assigneeId": "{{memberId}}"
+}
+
+### Create a second issue in the same project
+# @name createSecondIssue
+POST {{apiUrl}}/projects/{{projectId}}/issues
+Content-Type: application/json
+
+{
+  "title": "Add issue board search",
+  "type": "FEATURE",
+  "priority": "MEDIUM"
+}
+
+### Create a third issue for column ordering
+# @name createThirdIssue
+POST {{apiUrl}}/projects/{{projectId}}/issues
+Content-Type: application/json
+
+{
+  "title": "Improve API request logging",
+  "type": "TASK",
+  "priority": "LOW"
+}
+
+### List issues with combined search and filters
+GET {{apiUrl}}/projects/{{projectId}}/issues?q=accessibility&status=TODO,IN_PROGRESS&priority=HIGH,CRITICAL&assigneeId=me&sortBy=priority&order=desc&page=1&limit=10
+
+### Search issues by their project key
+GET {{apiUrl}}/projects/{{projectId}}/issues?q=FLOW-1
+
+### Search issues assigned to nobody
+GET {{apiUrl}}/projects/{{projectId}}/issues?assigneeId=unassigned
+
+### Sort issues by priority
+GET {{apiUrl}}/projects/{{projectId}}/issues?sortBy=priority&order=desc
+
+### View filtered Kanban board
+GET {{apiUrl}}/projects/{{projectId}}/board?type=BUG,FEATURE
+
+### Get issue details and comment count
+GET {{apiUrl}}/projects/{{projectId}}/issues/{{issueId}}
+
+### Add a top-level issue comment
+# @name createTopLevelComment
+POST {{apiUrl}}/projects/{{projectId}}/issues/{{issueId}}/comments
+Content-Type: application/json
+
+{
+  "content": "  Root comment for the threaded discussion.  "
+}
+
+### Reply to a top-level comment
+# @name createReplyComment
+POST {{apiUrl}}/projects/{{projectId}}/issues/{{issueId}}/comments
+Content-Type: application/json
+
+{
+  "content": "First-level reply",
+  "parentId": "{{commentId}}"
+}
+
+### Add a third-level threaded comment
+# @name createNestedReplyComment
+POST {{apiUrl}}/projects/{{projectId}}/issues/{{issueId}}/comments
+Content-Type: application/json
+
+{
+  "content": "Second-level reply",
+  "parentId": "{{replyCommentId}}"
+}
+
+### List the nested issue comment tree
+GET {{apiUrl}}/projects/{{projectId}}/issues/{{issueId}}/comments
+
+### Edit a comment as its author
+PATCH {{apiUrl}}/projects/{{projectId}}/comments/{{commentId}}
+Content-Type: application/json
+
+{
+  "content": "Updated root comment"
+}
+
+### Failure: reject empty comment content (400)
+POST {{apiUrl}}/projects/{{projectId}}/issues/{{issueId}}/comments
+Content-Type: application/json
+
+{
+  "content": "   "
+}
+
+### Failure: reject a reply deeper than three levels (422)
+POST {{apiUrl}}/projects/{{projectId}}/issues/{{issueId}}/comments
+Content-Type: application/json
+
+{
+  "content": "This exceeds the supported thread depth",
+  "parentId": "{{nestedReplyCommentId}}"
+}
+
+### Sign in as owner before testing comment permissions
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{ownerEmail}}",
+  "password": "Demo@12345"
+}
+
+### Failure: only the author may edit a comment (403)
+PATCH {{apiUrl}}/projects/{{projectId}}/comments/{{replyCommentId}}
+Content-Type: application/json
+
+{
+  "content": "Unauthorized edit"
+}
+
+### Remove a comment with replies (soft delete)
+DELETE {{apiUrl}}/projects/{{projectId}}/comments/{{commentId}}
+
+### Remove a leaf reply (hard delete)
+DELETE {{apiUrl}}/projects/{{projectId}}/comments/{{nestedReplyCommentId}}
+
+### Sign back in as project member for remaining member permission checks
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{memberEmail}}",
+  "password": "{{password}}"
+}
+
+### Failure: assignee is not a project member (422)
+POST {{apiUrl}}/projects/{{projectId}}/issues
+Content-Type: application/json
+
+{
+  "title": "Invalid assignee test",
+  "type": "TASK",
+  "priority": "LOW",
+  "assigneeId": "not-a-project-member"
+}
+
+### Move an issue to another column
+PATCH {{apiUrl}}/projects/{{projectId}}/issues/{{secondIssueId}}/move
+Content-Type: application/json
+
+{
+  "status": "IN_PROGRESS"
+}
+
+### Move an issue within a column between neighbouring issues
+PATCH {{apiUrl}}/projects/{{projectId}}/issues/{{issueId}}/move
+Content-Type: application/json
+
+{
+  "status": "TODO",
+  "afterId": "{{thirdIssueId}}"
+}
+
+### Re-fetch board order after moves
+GET {{apiUrl}}/projects/{{projectId}}/board
+
+### Failure: member cannot edit another member's issue (403)
+PATCH {{apiUrl}}/projects/{{projectId}}/issues/{{secondIssueId}}
+Content-Type: application/json
+
+{
+  "title": "Unauthorized issue edit"
+}
+
+### Failure: MEMBER cannot invite users (403)
+POST {{apiUrl}}/projects/{{projectId}}/invitations
+Content-Type: application/json
+
+{
+  "email": "another-member@example.com",
+  "role": "MEMBER"
+}
+
+### Failure: non-member cannot view project details (404)
+GET {{apiUrl}}/projects/non-member-project-id
+
+### Failure: member cannot edit project details (403)
+PATCH {{apiUrl}}/projects/{{projectId}}
+Content-Type: application/json
+
+{
+  "name": "Unauthorized edit"
+}
+
+### Failure: invited email cannot accept another user's invitation (404)
+POST {{apiUrl}}/invitations/non-owned-invitation-id/accept
+
+### Failure: member cannot change another member's role (403)
+PATCH {{apiUrl}}/projects/{{projectId}}/members/{{memberId}}
+Content-Type: application/json
+
+{
+  "role": "ADMIN"
+}
+
+### Sign in as owner to manage membership
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{ownerEmail}}",
+  "password": "Demo@12345"
+}
+
+### Promote a member to ADMIN as owner
+PATCH {{apiUrl}}/projects/{{projectId}}/members/{{memberId}}
+Content-Type: application/json
+
+{
+  "role": "ADMIN"
+}
+
+### Sign in as the new admin
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{memberEmail}}",
+  "password": "{{password}}"
+}
+
+### Admin invites another user
+# @name createRevokedInvitation
+POST {{apiUrl}}/projects/{{projectId}}/invitations
+Content-Type: application/json
+
+{
+  "email": "revoke-test@example.com",
+  "role": "MEMBER"
+}
+
+### Admin revokes a pending invitation
+DELETE {{apiUrl}}/projects/{{projectId}}/invitations/{{revokedInvitationId}}
+
+### Failure: non-owner cannot change member roles (403)
+PATCH {{apiUrl}}/projects/{{projectId}}/members/{{memberId}}
+Content-Type: application/json
+
+{
+  "role": "MEMBER"
+}
+
+### Failure: admin cannot delete project (403)
+DELETE {{apiUrl}}/projects/{{projectId}}
+
+### Admin leaves the project
+DELETE {{apiUrl}}/projects/{{projectId}}/members/{{memberId}}
+
+### Sign in as owner before deleting project
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "{{ownerEmail}}",
+  "password": "Demo@12345"
+}
+
+### Owner deletes the test project
+DELETE {{apiUrl}}/projects/{{projectId}}

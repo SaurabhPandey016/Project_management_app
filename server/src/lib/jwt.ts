@@ -21,10 +21,17 @@ function getExpiryInSeconds(duration: string): number {
   return Number(amount) * durationInSeconds[unit]!;
 }
 
-export function signToken(payload: jwt.JwtPayload): string {
+export function signToken(
+  payload: jwt.JwtPayload,
+  expiresInSeconds = getExpiryInSeconds(env.JWT_EXPIRES_IN),
+): string {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: getExpiryInSeconds(env.JWT_EXPIRES_IN),
+    expiresIn: expiresInSeconds,
   });
+}
+
+export function signSocketToken(userId: string): string {
+  return signToken({ sub: userId, purpose: "socket" }, 60);
 }
 
 export function verifyToken(token: string): jwt.JwtPayload {
