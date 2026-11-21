@@ -112,10 +112,12 @@
 
   html {
     @apply scroll-smooth font-sans;
+    overflow-x: hidden;
   }
 
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
+    overflow-x: hidden;
     background-image:
       radial-gradient(
         ellipse at 50% -18%,
@@ -162,5 +164,13 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  [role="combobox"] {
+    min-width: 40px;
+    min-height: 40px;
   }
 }

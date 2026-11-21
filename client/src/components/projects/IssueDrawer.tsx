@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
   AlertCircle,
@@ -44,6 +44,9 @@ import { ApiError, api } from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/error-message";
 import { issueTypeIcons, priorityStyles } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
+import { useProjectSocket } from "@/hooks/useProjectSocket";
+import type { SocketEventPayload } from "@/lib/socket";
+import { parseIssueEvent } from "@/lib/project-events";
 import type {
   Issue,
   IssuePriority,
@@ -96,8 +99,7 @@ function isIssueStatus(value: string): value is IssueStatus {
 
 function isUnavailableError(error: unknown): boolean {
   return (
-    error instanceof ApiError &&
-    (error.status === 403 || error.status === 404)
+    error instanceof ApiError && (error.status === 403 || error.status === 404)
   );
 }
 
@@ -126,6 +128,7 @@ export function IssueDrawer({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [isSavingTitle, setIsSavingTitle] = useState(false);
+  const receivedRemoteIssueRef = useRef(false);
 
   const closeForUnavailableIssue = useCallback(
     (error: unknown) => {
@@ -144,13 +147,44 @@ export function IssueDrawer({
       current === null ? null : { ...current, commentCount },
     );
   }, []);
+  const applyRemoteIssue = useCallback(
+    (payload: SocketEventPayload) => {
+      const updated = parseIssueEvent(payload.entity, projectId);
+      if (updated === null || updated.id !== issueId) return;
+      receivedRemoteIssueRef.current = true;
+      setIssue((current) =>
+        current === null
+          ? updated
+          : { ...updated, commentCount: current.commentCount },
+      );
+    },
+    [issueId, projectId],
+  );
+  const handleRemoteDelete = useCallback(
+    (payload: SocketEventPayload) => {
+      if (payload.entity.id !== issueId) return;
+      toast.error("This issue was deleted by another teammate.");
+      onClose();
+    },
+    [issueId, onClose],
+  );
+
+  useProjectSocket(projectId, {
+    "issue:updated": applyRemoteIssue,
+    "issue:moved": applyRemoteIssue,
+    "issue:deleted": handleRemoteDelete,
+  });
 
   useEffect(() => {
     let active = true;
     api
       .get<Issue>(`/projects/${projectId}/issues/${issueId}`)
       .then((result) => {
-        if (active) setIssue(result);
+        if (active) {
+          setIssue((current) =>
+            receivedRemoteIssueRef.current ? (current ?? result) : result,
+          );
+        }
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -174,9 +208,7 @@ export function IssueDrawer({
   const isAdmin = role === "OWNER" || role === "ADMIN";
   const canEdit =
     issue !== null &&
-    (isAdmin ||
-      issue.reporterId === user?.id ||
-      issue.assigneeId === user?.id);
+    (isAdmin || issue.reporterId === user?.id || issue.assigneeId === user?.id);
   const canDelete =
     issue !== null && (isAdmin || issue.reporterId === user?.id);
   const TypeIcon = issue ? issueTypeIcons[issue.type] : null;
@@ -266,7 +298,7 @@ export function IssueDrawer({
           if (!open) onClose();
         }}
       >
-        <SheetContent className="flex h-full w-full max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <SheetContent className="flex h-full w-full max-w-none flex-col gap-0 overflow-hidden p-0 data-[side=right]:w-full sm:max-w-2xl">
           {isLoading ? (
             <div aria-label="Loading issue details" className="space-y-5 p-5">
               <Skeleton className="h-5 w-24" />
@@ -276,10 +308,7 @@ export function IssueDrawer({
             </div>
           ) : loadError || issue === null ? (
             <div className="flex flex-1 flex-col items-start justify-center gap-4 p-6">
-              <AlertCircle
-                aria-hidden="true"
-                className="size-5 text-red-300"
-              />
+              <AlertCircle aria-hidden="true" className="size-5 text-red-300" />
               <div>
                 <SheetTitle>Issue couldn&apos;t be loaded</SheetTitle>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -294,7 +323,9 @@ export function IssueDrawer({
             <>
               <SheetHeader className="shrink-0 border-b border-border/70 pr-14">
                 <SheetDescription className="flex items-center gap-2">
-                  {TypeIcon && <TypeIcon aria-hidden="true" className="size-4" />}
+                  {TypeIcon && (
+                    <TypeIcon aria-hidden="true" className="size-4" />
+                  )}
                   <span>{issue.key}</span>
                   <span aria-hidden="true">·</span>
                   <span>{issueTypes[issue.type]}</span>
@@ -388,10 +419,7 @@ export function IssueDrawer({
                         </SelectTrigger>
                         <SelectContent>
                           {statuses.map((status) => (
-                            <SelectItem
-                              key={status.value}
-                              value={status.value}
-                            >
+                            <SelectItem key={status.value} value={status.value}>
                               {status.label}
                             </SelectItem>
                           ))}

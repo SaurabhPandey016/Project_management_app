@@ -17,8 +17,7 @@ const result = publicEnvironmentSchema.safeParse({
     process.env.NEXT_PUBLIC_LINKEDIN_URL ||
     "https://www.linkedin.com/in/saurabhpandey-/",
   githubUrl:
-    process.env.NEXT_PUBLIC_GITHUB_URL ||
-    "https://github.com/SaurabhPandey016",
+    process.env.NEXT_PUBLIC_GITHUB_URL || "https://github.com/SaurabhPandey016",
   contactEmail:
     process.env.NEXT_PUBLIC_CONTACT_EMAIL || "developersaurabh001@gmail.com",
 });

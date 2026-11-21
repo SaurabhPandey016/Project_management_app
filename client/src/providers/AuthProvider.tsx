@@ -76,25 +76,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener(unauthorizedEvent, handleUnauthorized);
   }, [isProtectedPath, pathname, refreshUser, router]);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const result = await api.post<User>("/auth/login", { email, password });
-      setUser(result);
-      setError(null);
-      try {
-        const invitations = await api.get<Invitation[]>("/invitations/mine");
-        setPendingInvitationCount(invitations.length);
-      } catch (requestError) {
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "Unable to refresh your invitations",
-        );
-      }
-      return result;
-    },
-    [],
-  );
+  const login = useCallback(async (email: string, password: string) => {
+    const result = await api.post<User>("/auth/login", { email, password });
+    setUser(result);
+    setError(null);
+    try {
+      const invitations = await api.get<Invitation[]>("/invitations/mine");
+      setPendingInvitationCount(invitations.length);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to refresh your invitations",
+      );
+    }
+    return result;
+  }, []);
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {

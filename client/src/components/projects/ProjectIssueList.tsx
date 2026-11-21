@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
@@ -8,10 +9,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IssueDrawer } from "@/components/projects/IssueDrawer";
 import { issueTypeIcons, priorityStyles } from "@/lib/constants";
 import type { Issue, ProjectRole } from "@/types/domain";
 import type { ProjectMember } from "@/components/projects/ProjectSettingsPanel";
+
+const IssueDrawer = dynamic(
+  () =>
+    import("@/components/projects/IssueDrawer").then(
+      (module) => module.IssueDrawer,
+    ),
+  {
+    loading: () => <div aria-label="Loading issue details" role="status" />,
+  },
+);
 
 const statusLabels: Record<Issue["status"], string> = {
   TODO: "To do",
@@ -30,7 +40,11 @@ function initials(name: string): string {
 
 function IssueTableSkeleton() {
   return (
-    <div aria-label="Loading issue results" aria-live="polite" className="space-y-2">
+    <div
+      aria-label="Loading issue results"
+      aria-live="polite"
+      className="space-y-2"
+    >
       {Array.from({ length: 5 }, (_, index) => (
         <Skeleton key={index} className="h-14 rounded-lg" />
       ))}
@@ -155,13 +169,27 @@ export function ProjectIssueList({
               <table className="w-full min-w-[900px] border-collapse text-left text-sm">
                 <thead className="bg-muted/45 text-xs text-muted-foreground">
                   <tr>
-                    <th scope="col" className="px-4 py-3 font-medium">Key</th>
-                    <th scope="col" className="px-4 py-3 font-medium">Title</th>
-                    <th scope="col" className="px-4 py-3 font-medium">Status</th>
-                    <th scope="col" className="px-4 py-3 font-medium">Priority</th>
-                    <th scope="col" className="px-4 py-3 font-medium">Type</th>
-                    <th scope="col" className="px-4 py-3 font-medium">Assignee</th>
-                    <th scope="col" className="px-4 py-3 font-medium">Updated</th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      Key
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      Title
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      Status
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      Priority
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      Type
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      Assignee
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      Updated
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
@@ -190,7 +218,9 @@ export function ProjectIssueList({
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
-                          <Badge variant="outline">{statusLabels[issue.status]}</Badge>
+                          <Badge variant="outline">
+                            {statusLabels[issue.status]}
+                          </Badge>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <Badge
@@ -222,7 +252,9 @@ export function ProjectIssueList({
                               {issue.assignee.name}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">Unassigned</span>
+                            <span className="text-muted-foreground">
+                              Unassigned
+                            </span>
                           )}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
@@ -256,9 +288,13 @@ export function ProjectIssueList({
                         <span className="text-xs text-muted-foreground">
                           {issue.key}
                         </span>
-                        <span className="mt-1 block font-medium">{issue.title}</span>
+                        <span className="mt-1 block font-medium">
+                          {issue.title}
+                        </span>
                       </span>
-                      <Badge variant="outline">{statusLabels[issue.status]}</Badge>
+                      <Badge variant="outline">
+                        {statusLabels[issue.status]}
+                      </Badge>
                     </span>
                     <span className="mt-3 flex flex-wrap items-center gap-2">
                       <Badge

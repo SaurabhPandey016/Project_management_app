@@ -9,11 +9,7 @@ import type {
   IssueSort,
 } from "@/hooks/useIssueFilters";
 import type { ProjectMember } from "@/components/projects/ProjectSettingsPanel";
-import type {
-  IssuePriority,
-  IssueStatus,
-  IssueType,
-} from "@/types/domain";
+import type { IssuePriority, IssueStatus, IssueType } from "@/types/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,7 +114,9 @@ function MultiSelectFilter<TValue extends string>({
         }
       >
         {label}
-        {selected.length > 0 && <Badge variant="secondary">{selected.length}</Badge>}
+        {selected.length > 0 && (
+          <Badge variant="secondary">{selected.length}</Badge>
+        )}
         <ChevronDown aria-hidden="true" className="size-3.5" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-52">
@@ -163,7 +161,7 @@ function AssigneeFilter({
       ? "Me"
       : selected === "unassigned"
         ? "Unassigned"
-        : selectedMember?.name ?? "Assignee";
+        : (selectedMember?.name ?? "Assignee");
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -281,7 +279,10 @@ function FilterControls({
         >
           <SelectTrigger aria-label="Sort issues" size="sm" className="w-44">
             <SelectValue>
-              {sortOptions.find((option) => option.value === filters.sort)?.label}
+              {
+                sortOptions.find((option) => option.value === filters.sort)
+                  ?.label
+              }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>

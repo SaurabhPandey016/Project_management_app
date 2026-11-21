@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
@@ -20,6 +20,22 @@ export const metadata: Metadata = {
   },
   description:
     "A clearer, calmer way to manage projects, issues, and team collaboration.",
+  openGraph: {
+    title: "IssueFlow — Move work forward",
+    description:
+      "A clearer, calmer way to manage projects, issues, and team collaboration.",
+    siteName: "IssueFlow",
+    type: "website",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
 };
 
 export default function RootLayout({

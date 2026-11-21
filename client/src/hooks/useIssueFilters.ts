@@ -3,22 +3,33 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
-import type {
-  IssuePriority,
-  IssueStatus,
-  IssueType,
-} from "@/types/domain";
+import type { IssuePriority, IssueStatus, IssueType } from "@/types/domain";
 
 const priorities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 const types = ["BUG", "FEATURE", "TASK"] as const;
 const statuses = ["TODO", "IN_PROGRESS", "DONE"] as const;
-const sortOptions = ["newest", "oldest", "updated", "priority", "title"] as const;
+const sortOptions = [
+  "newest",
+  "oldest",
+  "updated",
+  "priority",
+  "title",
+] as const;
 
 const filtersSchema = z.object({
   q: z.string().trim().max(200).catch(""),
-  status: z.array(z.enum(statuses)).transform((values) => [...new Set(values)]).catch([]),
-  priority: z.array(z.enum(priorities)).transform((values) => [...new Set(values)]).catch([]),
-  type: z.array(z.enum(types)).transform((values) => [...new Set(values)]).catch([]),
+  status: z
+    .array(z.enum(statuses))
+    .transform((values) => [...new Set(values)])
+    .catch([]),
+  priority: z
+    .array(z.enum(priorities))
+    .transform((values) => [...new Set(values)])
+    .catch([]),
+  type: z
+    .array(z.enum(types))
+    .transform((values) => [...new Set(values)])
+    .catch([]),
   assignee: z.string().trim().max(100).catch(""),
   sort: z.enum(sortOptions).catch("newest"),
   page: z.coerce.number().int().min(1).catch(1),
@@ -90,7 +101,10 @@ function toListQuery(filters: IssueFilters): string {
         ? "updatedAt"
         : filters.sort;
   params.set("sortBy", sortBy);
-  params.set("order", filters.sort === "oldest" || filters.sort === "title" ? "asc" : "desc");
+  params.set(
+    "order",
+    filters.sort === "oldest" || filters.sort === "title" ? "asc" : "desc",
+  );
   params.set("page", String(filters.page));
   params.set("limit", "20");
   return params.toString();

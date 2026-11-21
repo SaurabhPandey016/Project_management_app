@@ -20,10 +20,7 @@ function FormField<
   return <Controller {...props} />;
 }
 
-function FormItem({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function FormItem({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="form-item"
@@ -40,19 +37,11 @@ function FormLabel({
   return <Label className={cn("text-sm", className)} {...props} />;
 }
 
-function FormControl({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-  return (
-    <div data-slot="form-control" className={className} {...props} />
-  );
+function FormControl({ className, ...props }: React.ComponentProps<"div">) {
+  return <div data-slot="form-control" className={className} {...props} />;
 }
 
-function FormDescription({
-  className,
-  ...props
-}: React.ComponentProps<"p">) {
+function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="form-description"

@@ -95,16 +95,46 @@ const features: {
 
 const sampleIssues = [
   [
-    { key: "WEB-24", title: "Add empty state to projects", tag: "Design", color: "bg-violet-400" },
-    { key: "WEB-27", title: "Review mobile navigation", tag: "Frontend", color: "bg-blue-400" },
+    {
+      key: "WEB-24",
+      title: "Add empty state to projects",
+      tag: "Design",
+      color: "bg-violet-400",
+    },
+    {
+      key: "WEB-27",
+      title: "Review mobile navigation",
+      tag: "Frontend",
+      color: "bg-blue-400",
+    },
   ],
   [
-    { key: "WEB-21", title: "Polish the sign-in flow", tag: "High", color: "bg-orange-400" },
-    { key: "WEB-25", title: "Connect invite acceptance", tag: "Backend", color: "bg-cyan-400" },
+    {
+      key: "WEB-21",
+      title: "Polish the sign-in flow",
+      tag: "High",
+      color: "bg-orange-400",
+    },
+    {
+      key: "WEB-25",
+      title: "Connect invite acceptance",
+      tag: "Backend",
+      color: "bg-cyan-400",
+    },
   ],
   [
-    { key: "WEB-18", title: "Create shared issue board", tag: "Shipped", color: "bg-emerald-400" },
-    { key: "WEB-20", title: "Add project activity feed", tag: "Shipped", color: "bg-emerald-400" },
+    {
+      key: "WEB-18",
+      title: "Create shared issue board",
+      tag: "Shipped",
+      color: "bg-emerald-400",
+    },
+    {
+      key: "WEB-20",
+      title: "Add project activity feed",
+      tag: "Shipped",
+      color: "bg-emerald-400",
+    },
   ],
 ];
 
@@ -158,8 +188,8 @@ export default function HomePage() {
         <div className="relative grid items-center gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-8">
           <div className="min-w-0">
             <Badge className="gap-1.5 border border-indigo-300/20 bg-indigo-400/10 px-3 py-1 text-indigo-200 hover:bg-indigo-400/10">
-              <Sparkles aria-hidden="true" className="size-3.5" />
-              A clearer way to collaborate
+              <Sparkles aria-hidden="true" className="size-3.5" />A clearer way
+              to collaborate
             </Badge>
             <h1 className="mt-7 max-w-2xl text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
               Great work moves
@@ -188,14 +218,19 @@ export default function HomePage() {
               />
             </div>
             <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
-              {["No credit card required", "Secure by default", "Made for teams"].map(
-                (label) => (
-                  <span key={label} className="inline-flex items-center gap-1.5">
-                    <Check aria-hidden="true" className="size-3.5 text-emerald-400" />
-                    {label}
-                  </span>
-                ),
-              )}
+              {[
+                "No credit card required",
+                "Secure by default",
+                "Made for teams",
+              ].map((label) => (
+                <span key={label} className="inline-flex items-center gap-1.5">
+                  <Check
+                    aria-hidden="true"
+                    className="size-3.5 text-emerald-400"
+                  />
+                  {label}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -210,13 +245,17 @@ export default function HomePage() {
                   <Layers3 aria-hidden="true" className="size-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">Website Revamp</p>
+                  <p className="truncate text-sm font-semibold">
+                    Website Revamp
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     WEB · Project workspace
                   </p>
                 </div>
               </div>
-              <Badge variant="secondary" className="shrink-0">Sprint 04</Badge>
+              <Badge variant="secondary" className="shrink-0">
+                Sprint 04
+              </Badge>
             </div>
             <div className="grid grid-cols-1 gap-3 pt-4 sm:grid-cols-3">
               {columns.map((column, index) => (
@@ -226,10 +265,17 @@ export default function HomePage() {
                 >
                   <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span className="inline-flex min-w-0 items-center gap-2">
-                      <span className={`size-2 shrink-0 rounded-full ${column.tone}`} />
+                      <span
+                        className={`size-2 shrink-0 rounded-full ${column.tone}`}
+                      />
                       <span className="truncate">{column.title}</span>
                     </span>
-                    <span>{String(sampleIssues[index]?.length ?? 0).padStart(2, "0")}</span>
+                    <span>
+                      {String(sampleIssues[index]?.length ?? 0).padStart(
+                        2,
+                        "0",
+                      )}
+                    </span>
                   </div>
                   <div className="mt-3 grid gap-2">
                     {(sampleIssues[index] ?? []).map((issue) => (
@@ -241,7 +287,9 @@ export default function HomePage() {
                           <span className="truncate text-[10px] font-medium text-muted-foreground">
                             {issue.key}
                           </span>
-                          <span className={`size-1.5 shrink-0 rounded-full ${issue.color}`} />
+                          <span
+                            className={`size-1.5 shrink-0 rounded-full ${issue.color}`}
+                          />
                         </div>
                         <p className="mt-2 line-clamp-2 min-h-9 text-xs font-medium leading-4">
                           {issue.title}
@@ -257,7 +305,10 @@ export default function HomePage() {
             </div>
             <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <Radio aria-hidden="true" className="size-3.5 text-emerald-400" />
+                <Radio
+                  aria-hidden="true"
+                  className="size-3.5 text-emerald-400"
+                />
                 Team workspace
               </span>
               <span>6 issues in view</span>
@@ -275,7 +326,9 @@ export default function HomePage() {
 
       <section id="features" className="scroll-mt-24 py-16 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-medium text-indigo-300">Built for the whole workflow</p>
+          <p className="text-sm font-medium text-indigo-300">
+            Built for the whole workflow
+          </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
             Everything your team needs to stay in flow
           </h2>
@@ -306,7 +359,9 @@ export default function HomePage() {
 
       <section className="py-12 sm:py-16">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-medium text-indigo-300">Simple by design</p>
+          <p className="text-sm font-medium text-indigo-300">
+            Simple by design
+          </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
             From first issue to finished work
           </h2>
@@ -349,9 +404,9 @@ export default function HomePage() {
                 A shared picture of progress, as it happens.
               </h2>
               <p className="mt-4 leading-7 text-muted-foreground">
-                IssueFlow keeps teammates in sync with real-time project updates.
-                See issue changes and conversations arrive without losing focus
-                or refreshing your workspace.
+                IssueFlow keeps teammates in sync with real-time project
+                updates. See issue changes and conversations arrive without
+                losing focus or refreshing your workspace.
               </p>
             </div>
             <div className="mx-auto grid size-32 place-items-center rounded-full border border-indigo-300/20 bg-background/50 md:size-40">
@@ -405,7 +460,11 @@ export default function HomePage() {
                   nativeButton={false}
                   role="link"
                   render={
-                    <a href={env.demoVideoUrl} target="_blank" rel="noreferrer" />
+                    <a
+                      href={env.demoVideoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    />
                   }
                 >
                   Watch project walkthrough
@@ -417,7 +476,10 @@ export default function HomePage() {
                 </p>
               )}
               <div className="flex items-start gap-3 rounded-xl border border-amber-300/15 bg-amber-300/5 p-4">
-                <Sparkles aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-amber-300" />
+                <Sparkles
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 shrink-0 text-amber-300"
+                />
                 <p className="text-sm leading-6 text-muted-foreground">
                   The live demo uses free-tier services to keep the project
                   accessible. They may be asleep between visits, so the first
@@ -461,8 +523,8 @@ export default function HomePage() {
         <CardContent className="flex flex-col items-start justify-between gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
           <div>
             <span className="inline-flex items-center gap-2 text-sm text-indigo-300">
-              <CheckSquare aria-hidden="true" className="size-4" />
-              A better workspace starts here
+              <CheckSquare aria-hidden="true" className="size-4" />A better
+              workspace starts here
             </span>
             <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
               Make your next project easier to run.

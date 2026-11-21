@@ -1,8 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDistanceToNowStrict } from "date-fns";
-import { LoaderCircle, MessageSquare, Pencil, Send, Trash2 } from "lucide-react";
+import {
+  LoaderCircle,
+  MessageSquare,
+  Pencil,
+  Send,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,6 +24,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError, api } from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/error-message";
 import type { Comment, ProjectRole, User } from "@/types/domain";
+import { useProjectSocket } from "@/hooks/useProjectSocket";
+import type { SocketEventPayload } from "@/lib/socket";
+import { parseCommentEvent } from "@/lib/project-events";
 
 interface IssueCommentsProps {
   projectId: string;
@@ -75,6 +84,50 @@ function removeComment(comments: Comment[], commentId: string): Comment[] {
     }));
 }
 
+function containsComment(comments: Comment[], commentId: string): boolean {
+  return comments.some(
+    (comment) =>
+      comment.id === commentId || containsComment(comment.replies, commentId),
+  );
+}
+
+function findComment(
+  comments: Comment[],
+  commentId: string,
+): Comment | undefined {
+  for (const comment of comments) {
+    if (comment.id === commentId) return comment;
+    const reply = findComment(comment.replies, commentId);
+    if (reply !== undefined) return reply;
+  }
+  return undefined;
+}
+
+function mergeLiveComments(fetched: Comment[], live: Comment[]): Comment[] {
+  const merged = fetched.map((comment) => {
+    const liveVersion = findComment(live, comment.id);
+    const isLiveNewer =
+      liveVersion !== undefined &&
+      (liveVersion.isDeleted ||
+        (liveVersion.editedAt ?? "") > (comment.editedAt ?? ""));
+    return {
+      ...comment,
+      ...(isLiveNewer ? liveVersion : {}),
+      replies: mergeLiveComments(comment.replies, liveVersion?.replies ?? []),
+    };
+  });
+
+  for (const comment of live) {
+    if (
+      comment.parentId === null &&
+      findComment(fetched, comment.id) === undefined
+    ) {
+      merged.push(comment);
+    }
+  }
+  return merged;
+}
+
 function relativeDate(value: string): string {
   return formatDistanceToNowStrict(new Date(value), { addSuffix: true });
 }
@@ -97,6 +150,7 @@ export function IssueComments({
   const [editDraft, setEditDraft] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Comment | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const commentsRef = useRef<Comment[]>([]);
   const isAdmin = role === "OWNER" || role === "ADMIN";
 
   const loadComments = useCallback(async () => {
@@ -106,8 +160,10 @@ export function IssueComments({
       const result = await api.get<Comment[]>(
         `/projects/${projectId}/issues/${issueId}/comments`,
       );
-      setComments(result);
-      onChanged(countComments(result));
+      const merged = mergeLiveComments(result, commentsRef.current);
+      commentsRef.current = merged;
+      setComments(merged);
+      onChanged(countComments(merged));
     } catch (error) {
       if (
         error instanceof ApiError &&
@@ -115,9 +171,7 @@ export function IssueComments({
       ) {
         onUnavailable(error);
       } else {
-        setLoadError(
-          getFriendlyErrorMessage(error, "Unable to load comments"),
-        );
+        setLoadError(getFriendlyErrorMessage(error, "Unable to load comments"));
       }
     } finally {
       setIsLoading(false);
@@ -130,8 +184,10 @@ export function IssueComments({
       .get<Comment[]>(`/projects/${projectId}/issues/${issueId}/comments`)
       .then((result) => {
         if (!active) return;
-        setComments(result);
-        onChanged(countComments(result));
+        const merged = mergeLiveComments(result, commentsRef.current);
+        commentsRef.current = merged;
+        setComments(merged);
+        onChanged(countComments(merged));
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -152,6 +208,79 @@ export function IssueComments({
       active = false;
     };
   }, [issueId, onChanged, onUnavailable, projectId]);
+
+  useEffect(() => {
+    commentsRef.current = comments;
+  }, [comments]);
+
+  const handleRemoteCommentCreated = useCallback(
+    (payload: SocketEventPayload) => {
+      const comment = parseCommentEvent(payload.entity);
+      if (comment === null || comment.issueId !== issueId) return;
+      const current = commentsRef.current;
+      if (containsComment(current, comment.id)) return;
+      if (
+        comment.parentId !== null &&
+        !containsComment(current, comment.parentId)
+      ) {
+        void loadComments();
+        return;
+      }
+
+      const next = appendComment(current, comment.parentId, comment);
+      commentsRef.current = next;
+      setComments(next);
+      onChanged(countComments(next));
+    },
+    [issueId, loadComments, onChanged],
+  );
+  const handleRemoteCommentUpdated = useCallback(
+    (payload: SocketEventPayload) => {
+      const comment = parseCommentEvent(payload.entity);
+      if (comment === null || comment.issueId !== issueId) return;
+      const current = commentsRef.current;
+      if (!containsComment(current, comment.id)) {
+        void loadComments();
+        return;
+      }
+
+      const next = updateComment(current, comment.id, (existing) => ({
+        ...existing,
+        ...comment,
+        replies: existing.replies,
+      }));
+      commentsRef.current = next;
+      setComments(next);
+      onChanged(countComments(next));
+    },
+    [issueId, loadComments, onChanged],
+  );
+  const handleRemoteCommentDeleted = useCallback(
+    (payload: SocketEventPayload) => {
+      const comment = parseCommentEvent(payload.entity);
+      if (comment === null || comment.issueId !== issueId) return;
+      const current = commentsRef.current;
+      if (!containsComment(current, comment.id)) return;
+
+      const next = comment.isDeleted
+        ? updateComment(current, comment.id, (existing) => ({
+            ...existing,
+            content: "[deleted]",
+            isDeleted: true,
+          }))
+        : removeComment(current, comment.id);
+      commentsRef.current = next;
+      setComments(next);
+      onChanged(countComments(next));
+    },
+    [issueId, onChanged],
+  );
+
+  useProjectSocket(projectId, {
+    "comment:created": handleRemoteCommentCreated,
+    "comment:updated": handleRemoteCommentUpdated,
+    "comment:deleted": handleRemoteCommentDeleted,
+  });
 
   async function submitComment(
     content: string,
@@ -447,9 +576,7 @@ export function IssueComments({
                     type="button"
                     size="sm"
                     disabled={isSubmitting || !replyDraft.trim()}
-                    onClick={() =>
-                      void submitComment(replyDraft, comment.id)
-                    }
+                    onClick={() => void submitComment(replyDraft, comment.id)}
                   >
                     {isSubmitting ? (
                       <LoaderCircle
@@ -483,7 +610,10 @@ export function IssueComments({
           id="issue-comments-heading"
           className="flex items-center gap-2 text-base font-semibold"
         >
-          <MessageSquare aria-hidden="true" className="size-4 text-indigo-300" />
+          <MessageSquare
+            aria-hidden="true"
+            className="size-4 text-indigo-300"
+          />
           Comments
         </h3>
         {!isLoading && (
@@ -499,7 +629,10 @@ export function IssueComments({
           <div className="h-16 animate-pulse rounded-lg bg-muted/50" />
         </div>
       ) : loadError ? (
-        <div role="alert" className="space-y-2 rounded-lg border border-border p-3">
+        <div
+          role="alert"
+          className="space-y-2 rounded-lg border border-border p-3"
+        >
           <p className="text-sm text-muted-foreground">{loadError}</p>
           <Button
             type="button"
@@ -521,10 +654,7 @@ export function IssueComments({
       )}
 
       <div className="sticky bottom-0 space-y-2 border-t border-border/70 bg-background/95 pt-3 backdrop-blur">
-        <label
-          htmlFor="issue-comment-composer"
-          className="text-sm font-medium"
-        >
+        <label htmlFor="issue-comment-composer" className="text-sm font-medium">
           Add a comment
         </label>
         <Textarea

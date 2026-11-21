@@ -168,7 +168,9 @@ async function getIssuesByOrderedIds(
     where: { id: { in: ids } },
     include: {
       ...issueInclude,
-      ...(includeCommentCount ? { _count: { select: { comments: true } } } : {}),
+      ...(includeCommentCount
+        ? { _count: { select: { comments: true } } }
+        : {}),
     },
   });
   const issueById = new Map(issues.map((issue) => [issue.id, issue]));

@@ -18,7 +18,12 @@ import { ApiError, api } from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/error-message";
 import type { Issue, Project, ProjectRole, User } from "@/types/domain";
 import { useAuth } from "@/hooks/useAuth";
-import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+} from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -170,7 +175,10 @@ function ProjectCreateDialog({
             Set up a shared workspace for your team&apos;s work.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={(event) => void createProject(event)} className="space-y-4">
+        <form
+          onSubmit={(event) => void createProject(event)}
+          className="space-y-4"
+        >
           <div className="grid gap-2">
             <Label htmlFor="create-project-name">Project name</Label>
             <Input
@@ -191,7 +199,12 @@ function ProjectCreateDialog({
               value={key}
               onChange={(event) => {
                 setKeyEdited(true);
-                setKey(event.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5));
+                setKey(
+                  event.target.value
+                    .toUpperCase()
+                    .replace(/[^A-Z]/g, "")
+                    .slice(0, 5),
+                );
               }}
               placeholder="WEB"
               minLength={2}
@@ -205,7 +218,9 @@ function ProjectCreateDialog({
             </p>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="create-project-description">Description (optional)</Label>
+            <Label htmlFor="create-project-description">
+              Description (optional)
+            </Label>
             <textarea
               id="create-project-description"
               value={description}
@@ -258,18 +273,19 @@ export default function DashboardPage() {
       const projects = await api.get<Project[]>("/projects");
       const perProject = await Promise.all(
         projects.map(async (project) => {
-          const [details, assigned, critical, latestActivity] = await Promise.all([
-            api.get<ProjectDetails>(`/projects/${project.id}`),
-            api.get<IssueListResponse>(
-              `/projects/${project.id}/issues?assigneeId=me&status=TODO,IN_PROGRESS&limit=100`,
-            ),
-            api.get<IssueListResponse>(
-              `/projects/${project.id}/issues?priority=CRITICAL&limit=100`,
-            ),
-            api.get<IssueListResponse>(
-              `/projects/${project.id}/issues?sortBy=updatedAt&order=desc&limit=1`,
-            ),
-          ]);
+          const [details, assigned, critical, latestActivity] =
+            await Promise.all([
+              api.get<ProjectDetails>(`/projects/${project.id}`),
+              api.get<IssueListResponse>(
+                `/projects/${project.id}/issues?assigneeId=me&status=TODO,IN_PROGRESS&limit=100`,
+              ),
+              api.get<IssueListResponse>(
+                `/projects/${project.id}/issues?priority=CRITICAL&limit=100`,
+              ),
+              api.get<IssueListResponse>(
+                `/projects/${project.id}/issues?sortBy=updatedAt&order=desc&limit=1`,
+              ),
+            ]);
           return {
             project: {
               ...project,
@@ -322,9 +338,7 @@ export default function DashboardPage() {
                 memberCount: 1,
                 openIssueCount: 0,
                 lastActivityAt: project.updatedAt,
-                memberPreview: user
-                  ? [{ ...user, role: "OWNER" }]
-                  : [],
+                memberPreview: user ? [{ ...user, role: "OWNER" }] : [],
               },
             ],
             assignedOpenCount: 0,
@@ -339,9 +353,7 @@ export default function DashboardPage() {
                 memberCount: 1,
                 openIssueCount: 0,
                 lastActivityAt: project.updatedAt,
-                memberPreview: user
-                  ? [{ ...user, role: "OWNER" }]
-                  : [],
+                memberPreview: user ? [{ ...user, role: "OWNER" }] : [],
               },
               ...current.projects,
             ],
@@ -381,7 +393,9 @@ export default function DashboardPage() {
       <StatusGate>
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-sm font-medium text-indigo-300">Your workspace</p>
+            <p className="text-sm font-medium text-indigo-300">
+              Your workspace
+            </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
               {user ? `Welcome, ${user.name.split(" ")[0]}` : "Dashboard"}
             </h1>
@@ -403,20 +417,28 @@ export default function DashboardPage() {
           </div>
         ) : !error && dashboard ? (
           <div className="mt-7 grid gap-4 sm:grid-cols-3">
-            {statCards.map(({ label, value, icon: Icon, description, tone }) => (
-              <Card key={label} className="border-white/8 bg-card/55">
-                <CardContent className="flex items-start justify-between gap-3 p-5">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{label}</p>
-                    <p className="mt-2 text-3xl font-semibold tabular-nums">{value}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-                  </div>
-                  <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tone}`}>
-                    <Icon aria-hidden="true" className="size-5" />
-                  </span>
-                </CardContent>
-              </Card>
-            ))}
+            {statCards.map(
+              ({ label, value, icon: Icon, description, tone }) => (
+                <Card key={label} className="border-white/8 bg-card/55">
+                  <CardContent className="flex items-start justify-between gap-3 p-5">
+                    <div>
+                      <p className="text-sm text-muted-foreground">{label}</p>
+                      <p className="mt-2 text-3xl font-semibold tabular-nums">
+                        {value}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {description}
+                      </p>
+                    </div>
+                    <span
+                      className={`grid size-10 shrink-0 place-items-center rounded-xl ${tone}`}
+                    >
+                      <Icon aria-hidden="true" className="size-5" />
+                    </span>
+                  </CardContent>
+                </Card>
+              ),
+            )}
           </div>
         ) : null}
 
@@ -453,11 +475,16 @@ export default function DashboardPage() {
                   className="mt-0.5 size-5 shrink-0 text-red-300"
                 />
                 <div>
-                  <p className="font-medium">Dashboard couldn&apos;t be loaded</p>
+                  <p className="font-medium">
+                    Dashboard couldn&apos;t be loaded
+                  </p>
                   <p className="mt-1 text-sm text-muted-foreground">{error}</p>
                 </div>
               </div>
-              <Button variant="outline" onClick={() => void retryLoadingDashboard()}>
+              <Button
+                variant="outline"
+                onClick={() => void retryLoadingDashboard()}
+              >
                 Try again
               </Button>
             </CardContent>
@@ -468,7 +495,9 @@ export default function DashboardPage() {
               <span className="grid size-12 place-items-center rounded-2xl border border-indigo-400/20 bg-indigo-400/10 text-indigo-300">
                 <FolderKanban aria-hidden="true" className="size-5" />
               </span>
-              <h3 className="mt-4 font-semibold">Your next project starts here</h3>
+              <h3 className="mt-4 font-semibold">
+                Your next project starts here
+              </h3>
               <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
                 Create a workspace to bring issues and teammates together, or
                 accept an invitation to join an existing project.
@@ -501,7 +530,9 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between gap-3">
-                      <AvatarGroup aria-label={`${project.memberCount ?? 0} project members`}>
+                      <AvatarGroup
+                        aria-label={`${project.memberCount ?? 0} project members`}
+                      >
                         {project.memberPreview.map((member) => (
                           <Avatar key={member.id} aria-label={member.name}>
                             <AvatarFallback
@@ -512,9 +543,12 @@ export default function DashboardPage() {
                             </AvatarFallback>
                           </Avatar>
                         ))}
-                        {(project.memberCount ?? 0) > project.memberPreview.length && (
+                        {(project.memberCount ?? 0) >
+                          project.memberPreview.length && (
                           <AvatarGroupCount>
-                            +{(project.memberCount ?? 0) - project.memberPreview.length}
+                            +
+                            {(project.memberCount ?? 0) -
+                              project.memberPreview.length}
                           </AvatarGroupCount>
                         )}
                       </AvatarGroup>
@@ -531,11 +565,15 @@ export default function DashboardPage() {
                       </span>
                       <span>
                         {project.openIssueCount ?? 0} open{" "}
-                        {(project.openIssueCount ?? 0) === 1 ? "issue" : "issues"}
+                        {(project.openIssueCount ?? 0) === 1
+                          ? "issue"
+                          : "issues"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span className="truncate">{formatActivity(project.lastActivityAt)}</span>
+                      <span className="truncate">
+                        {formatActivity(project.lastActivityAt)}
+                      </span>
                       <ArrowRight
                         aria-hidden="true"
                         className="size-4 shrink-0 transition-transform group-hover:translate-x-1"

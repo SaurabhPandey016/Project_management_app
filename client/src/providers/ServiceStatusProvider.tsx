@@ -15,11 +15,7 @@ import { env } from "@/lib/env";
 import { serviceFailureEvent } from "@/lib/api";
 
 export type ServiceStatus =
-  | "checking"
-  | "waking"
-  | "live"
-  | "db_paused"
-  | "offline";
+  "checking" | "waking" | "live" | "db_paused" | "offline";
 
 export interface ServiceHealth {
   status: "ok";
@@ -92,11 +88,7 @@ function getVisibilitySnapshot() {
   return document.visibilityState === "visible";
 }
 
-export function ServiceStatusProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function ServiceStatusProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ServiceStatus>("checking");
   const [cycle, setCycle] = useState(0);
   const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
@@ -133,61 +125,64 @@ export function ServiceStatusProvider({
     [updateStatus],
   );
 
-  const checkHealth = useCallback(async (cycleId: number) => {
-    const controller = new AbortController();
-    controllersRef.current.add(controller);
-    const timeoutId = window.setTimeout(
-      () => controller.abort(),
-      REQUEST_TIMEOUT_MS,
-    );
-    const requestStartedAt = Date.now();
-
-    try {
-      const response = await fetch(
-        `${env.apiUrl.replace(/\/$/, "")}/api/health`,
-        {
-          method: "GET",
-          cache: "no-store",
-          signal: controller.signal,
-        },
+  const checkHealth = useCallback(
+    async (cycleId: number) => {
+      const controller = new AbortController();
+      controllersRef.current.add(controller);
+      const timeoutId = window.setTimeout(
+        () => controller.abort(),
+        REQUEST_TIMEOUT_MS,
       );
-      const requestLatency = Date.now() - requestStartedAt;
-      if (cycleRef.current !== cycleId) return;
+      const requestStartedAt = Date.now();
 
-      setLastCheckedAt(new Date().toISOString());
-      setLatencyMs(requestLatency);
+      try {
+        const response = await fetch(
+          `${env.apiUrl.replace(/\/$/, "")}/api/health`,
+          {
+            method: "GET",
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
+        const requestLatency = Date.now() - requestStartedAt;
+        if (cycleRef.current !== cycleId) return;
 
-      if (!response.ok) {
-        if (
-          statusRef.current === "live" ||
-          statusRef.current === "db_paused"
-        ) {
+        setLastCheckedAt(new Date().toISOString());
+        setLatencyMs(requestLatency);
+
+        if (!response.ok) {
+          if (
+            statusRef.current === "live" ||
+            statusRef.current === "db_paused"
+          ) {
+            beginRecovery("waking");
+          }
+          return;
+        }
+
+        const health = readHealth(await response.json());
+        if (health === null || cycleRef.current !== cycleId) return;
+
+        setLatencyMs(health.db.latencyMs ?? requestLatency);
+        updateStatus(health.db.status === "up" ? "live" : "db_paused");
+        setElapsedSeconds(
+          Math.floor((Date.now() - startedAtRef.current) / 1000),
+        );
+      } catch {
+        if (controller.signal.aborted || cycleRef.current !== cycleId) return;
+
+        setLastCheckedAt(new Date().toISOString());
+        setLatencyMs(null);
+        if (statusRef.current === "live" || statusRef.current === "db_paused") {
           beginRecovery("waking");
         }
-        return;
+      } finally {
+        window.clearTimeout(timeoutId);
+        controllersRef.current.delete(controller);
       }
-
-      const health = readHealth(await response.json());
-      if (health === null || cycleRef.current !== cycleId) return;
-
-      setLatencyMs(health.db.latencyMs ?? requestLatency);
-      updateStatus(health.db.status === "up" ? "live" : "db_paused");
-      setElapsedSeconds(
-        Math.floor((Date.now() - startedAtRef.current) / 1000),
-      );
-    } catch {
-      if (controller.signal.aborted || cycleRef.current !== cycleId) return;
-
-      setLastCheckedAt(new Date().toISOString());
-      setLatencyMs(null);
-      if (statusRef.current === "live" || statusRef.current === "db_paused") {
-        beginRecovery("waking");
-      }
-    } finally {
-      window.clearTimeout(timeoutId);
-      controllersRef.current.delete(controller);
-    }
-  }, [beginRecovery, updateStatus]);
+    },
+    [beginRecovery, updateStatus],
+  );
 
   const retry = useCallback(() => {
     beginRecovery();
@@ -223,9 +218,7 @@ export function ServiceStatusProvider({
     const cycleId = cycle;
     const activeControllers = controllersRef.current;
     const isRetrying = status === "checking" || status === "waking";
-    const pollInterval = isRetrying
-      ? POLL_INTERVAL_MS
-      : LIVE_POLL_INTERVAL_MS;
+    const pollInterval = isRetrying ? POLL_INTERVAL_MS : LIVE_POLL_INTERVAL_MS;
 
     const initialCheckId = window.setTimeout(
       () => void checkHealth(cycleId),
@@ -245,17 +238,23 @@ export function ServiceStatusProvider({
     }
 
     const elapsed = Date.now() - startedAtRef.current;
-    const wakeId = window.setTimeout(() => {
-      if (statusRef.current === "checking") updateStatus("waking");
-    }, Math.max(0, 3_000 - elapsed));
-    const offlineId = window.setTimeout(() => {
-      if (
-        statusRef.current === "checking" ||
-        statusRef.current === "waking"
-      ) {
-        updateStatus("offline");
-      }
-    }, Math.max(0, MAX_RETRY_WINDOW_MS - elapsed));
+    const wakeId = window.setTimeout(
+      () => {
+        if (statusRef.current === "checking") updateStatus("waking");
+      },
+      Math.max(0, 3_000 - elapsed),
+    );
+    const offlineId = window.setTimeout(
+      () => {
+        if (
+          statusRef.current === "checking" ||
+          statusRef.current === "waking"
+        ) {
+          updateStatus("offline");
+        }
+      },
+      Math.max(0, MAX_RETRY_WINDOW_MS - elapsed),
+    );
 
     return () => {
       window.clearTimeout(initialCheckId);
@@ -270,9 +269,7 @@ export function ServiceStatusProvider({
     if (!isVisible || (status !== "checking" && status !== "waking")) return;
 
     const updateElapsed = () => {
-      setElapsedSeconds(
-        Math.floor((Date.now() - startedAtRef.current) / 1000),
-      );
+      setElapsedSeconds(Math.floor((Date.now() - startedAtRef.current) / 1000));
     };
     const intervalId = window.setInterval(updateElapsed, 1_000);
     return () => window.clearInterval(intervalId);

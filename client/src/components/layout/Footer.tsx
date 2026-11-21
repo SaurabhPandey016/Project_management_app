@@ -1,10 +1,5 @@
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  BriefcaseBusiness,
-  CodeXml,
-  Mail,
-} from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, CodeXml, Mail } from "lucide-react";
 import { StatusPill } from "@/components/common/StatusPill";
 import { Logo } from "@/components/layout/Logo";
 import { env } from "@/lib/env";
@@ -46,17 +41,26 @@ export function Footer() {
           <h2 className="text-sm font-semibold">Product</h2>
           <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
             <li>
-              <Link className="transition-colors hover:text-foreground" href="/dashboard">
+              <Link
+                className="transition-colors hover:text-foreground"
+                href="/dashboard"
+              >
                 Dashboard
               </Link>
             </li>
             <li>
-              <Link className="transition-colors hover:text-foreground" href="/dashboard">
+              <Link
+                className="transition-colors hover:text-foreground"
+                href="/dashboard"
+              >
                 Projects
               </Link>
             </li>
             <li>
-              <Link className="transition-colors hover:text-foreground" href="/invitations">
+              <Link
+                className="transition-colors hover:text-foreground"
+                href="/invitations"
+              >
                 Invitations
               </Link>
             </li>

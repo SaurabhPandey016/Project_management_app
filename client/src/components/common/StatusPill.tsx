@@ -40,7 +40,8 @@ function getTooltipText(
   latencyMs: number | null,
   lastCheckedAt: string | null,
 ): string {
-  const latency = latencyMs === null ? "Latency unavailable" : `${latencyMs} ms`;
+  const latency =
+    latencyMs === null ? "Latency unavailable" : `${latencyMs} ms`;
   const lastChecked = lastCheckedAt
     ? `Last checked ${new Date(lastCheckedAt).toLocaleTimeString()}`
     : "Not checked yet";

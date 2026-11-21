@@ -33,9 +33,7 @@ export default function InvitationsPage() {
     return api
       .get<Invitation[]>("/invitations/mine")
       .then(setInvitations)
-      .catch((requestError: unknown) =>
-        setError(getErrorMessage(requestError)),
-      )
+      .catch((requestError: unknown) => setError(getErrorMessage(requestError)))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -95,7 +93,9 @@ export default function InvitationsPage() {
                 className="mt-0.5 size-5 shrink-0 text-red-300"
               />
               <div>
-                <p className="font-medium">Invitations couldn&apos;t be loaded</p>
+                <p className="font-medium">
+                  Invitations couldn&apos;t be loaded
+                </p>
                 <p className="mt-1 text-sm text-muted-foreground">{error}</p>
               </div>
             </div>
@@ -119,10 +119,7 @@ export default function InvitationsPage() {
       ) : (
         <div className="mt-7 space-y-3">
           {invitations.map((invitation) => (
-            <Card
-              key={invitation.id}
-              className="border-white/8 bg-card/55"
-            >
+            <Card key={invitation.id} className="border-white/8 bg-card/55">
               <CardContent className="flex flex-col justify-between gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-indigo-400/20 bg-indigo-400/10 text-indigo-300">

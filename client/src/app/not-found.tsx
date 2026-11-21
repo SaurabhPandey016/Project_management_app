@@ -8,7 +8,9 @@ export default function NotFound() {
       <span className="grid size-14 place-items-center rounded-2xl border border-indigo-400/20 bg-indigo-400/10 text-indigo-300">
         <SearchX aria-hidden="true" className="size-6" />
       </span>
-      <p className="mt-6 text-sm font-medium text-indigo-300">404 · Not found</p>
+      <p className="mt-6 text-sm font-medium text-indigo-300">
+        404 · Not found
+      </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">
         This page went missing
       </h1>

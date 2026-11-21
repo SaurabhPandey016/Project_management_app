@@ -1,9 +1,4 @@
-import {
-  Bug,
-  CheckSquare,
-  Sparkles,
-  type LucideIcon,
-} from "lucide-react";
+import { Bug, CheckSquare, Sparkles, type LucideIcon } from "lucide-react";
 import type { IssuePriority, IssueType } from "@/types/domain";
 
 export const priorityStyles: Record<IssuePriority, string> = {

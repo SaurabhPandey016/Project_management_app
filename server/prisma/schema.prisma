@@ -87,6 +87,7 @@ model ProjectMember {
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
+  @@index([userId])
   @@map("project_members")
 }
 
@@ -103,6 +104,7 @@ model Invitation {
   invitedBy   User             @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict)
 
   @@index([projectId, email, status])
+  @@index([email, status, createdAt])
   @@map("invitations")
 }
 
@@ -148,5 +150,6 @@ model Comment {
   replies   Comment[] @relation("CommentReplies")
 
   @@index([issueId, createdAt])
+  @@index([parentId])
   @@map("comments")
 }

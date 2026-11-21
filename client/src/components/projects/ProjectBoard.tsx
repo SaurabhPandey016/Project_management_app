@@ -1,18 +1,16 @@
 "use client";
 
-import { useCallback } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   DragDropContext,
   Draggable,
   Droppable,
+  type DraggableProvided,
   type DropResult,
 } from "@hello-pangea/dnd";
-import {
-  AlertCircle,
-  GripVertical,
-  MessageCircle,
-} from "lucide-react";
+import { AlertCircle, GripVertical, MessageCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,7 +33,16 @@ import type { Issue, IssueStatus, ProjectRole } from "@/types/domain";
 import type { ProjectMember } from "@/components/projects/ProjectSettingsPanel";
 import { NewIssueDialog } from "@/components/projects/NewIssueDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { IssueDrawer } from "@/components/projects/IssueDrawer";
+
+const IssueDrawer = dynamic(
+  () =>
+    import("@/components/projects/IssueDrawer").then(
+      (module) => module.IssueDrawer,
+    ),
+  {
+    loading: () => <div aria-label="Loading issue details" role="status" />,
+  },
+);
 
 const statuses: Array<{
   value: IssueStatus;
@@ -87,6 +94,120 @@ function IssueTypeIcon({ issue }: { issue: Issue }) {
   return <Icon aria-hidden="true" className="size-3.5 shrink-0" />;
 }
 
+const BoardIssueCard = memo(function BoardIssueCard({
+  issue,
+  dragHandleProps,
+  isHighlighted,
+  isMoving,
+  onOpen,
+  onMoveToStatus,
+}: {
+  issue: Issue;
+  dragHandleProps: DraggableProvided["dragHandleProps"];
+  isHighlighted: boolean;
+  isMoving: boolean;
+  onOpen: (issueId: string) => void;
+  onMoveToStatus: (issueId: string, status: IssueStatus) => void;
+}) {
+  return (
+    <Card
+      className={`border-border/70 bg-background/90 shadow-sm transition-all hover:border-indigo-400/30 ${
+        isHighlighted ? "ring-2 ring-indigo-400/70 animate-pulse" : ""
+      }`}
+    >
+      <CardContent className="space-y-3 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => onOpen(issue.id)}
+            aria-label={`Open ${issue.key}: ${issue.title}`}
+            className="min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <IssueTypeIcon issue={issue} />
+              {issue.key}
+            </span>
+            <span className="mt-2 line-clamp-2 block text-sm font-medium leading-5 text-foreground">
+              {issue.title}
+            </span>
+          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <Badge variant="outline" className={priorityStyles[issue.priority]}>
+              {issue.priority.toLowerCase()}
+            </Badge>
+            <button
+              type="button"
+              {...dragHandleProps}
+              aria-label={`Drag ${issue.key}`}
+              className="inline-flex size-7 touch-none items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+            >
+              <GripVertical aria-hidden="true" className="size-4" />
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+          <div className="flex min-w-0 items-center gap-2">
+            {issue.assignee ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <span
+                      tabIndex={0}
+                      aria-label={`Assigned to ${issue.assignee.name}`}
+                      className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                  }
+                >
+                  <Avatar size="sm">
+                    <AvatarFallback
+                      className="text-[0.6rem] font-semibold text-white"
+                      style={{ backgroundColor: issue.assignee.avatarColor }}
+                    >
+                      {initials(issue.assignee.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent>{issue.assignee.name}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <span className="text-xs text-muted-foreground">Unassigned</span>
+            )}
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <MessageCircle aria-hidden="true" className="size-3.5" />
+              {issue.commentCount ?? 0}
+              <span className="sr-only">comments</span>
+            </span>
+          </div>
+          <Select
+            value={issue.status}
+            onValueChange={(nextStatus) => {
+              if (nextStatus === null) return;
+              const status = getIssueStatus(nextStatus);
+              if (status !== null) onMoveToStatus(issue.id, status);
+            }}
+            disabled={isMoving}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label={`Change ${issue.key} status`}
+              className="max-w-32"
+            >
+              <SelectValue>{statusLabels[issue.status]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {statuses.map((status) => (
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
+
 function BoardSkeleton() {
   return (
     <div
@@ -121,18 +242,39 @@ export function ProjectBoard({
   refreshKey: number;
   queryString: string;
 }) {
-  const { board, isLoading, error, retry, moveIssue, movingIssueIds } =
-    useBoard(projectId, refreshKey, queryString);
+  const {
+    board,
+    isLoading,
+    error,
+    retry,
+    moveIssue,
+    movingIssueIds,
+    highlightedIssueIds,
+  } = useBoard(projectId, refreshKey, queryString);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedIssueId = searchParams.get("issue");
+  const boardRef = useRef(board);
+  useEffect(() => {
+    boardRef.current = board;
+  }, [board]);
 
-  function openIssue(issueId: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("issue", issueId);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  }
+  const openIssue = useCallback(
+    (issueId: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("issue", issueId);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const moveIssueToStatus = useCallback(
+    (issueId: string, status: IssueStatus) => {
+      void moveIssue(issueId, status, boardRef.current?.[status].length ?? 0);
+    },
+    [moveIssue],
+  );
 
   const closeIssue = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -153,11 +295,7 @@ export function ProjectBoard({
     }
     const status = getIssueStatus(result.destination.droppableId);
     if (status === null) return;
-    void moveIssue(
-      result.draggableId,
-      status,
-      result.destination.index,
-    );
+    void moveIssue(result.draggableId, status, result.destination.index);
   }
 
   if (isLoading && board === null) return <BoardSkeleton />;
@@ -256,125 +394,14 @@ export function ProjectBoard({
                                 : "hover:-translate-y-0.5"
                             }`}
                           >
-                            <Card className="border-border/70 bg-background/90 shadow-sm transition-colors hover:border-indigo-400/30">
-                              <CardContent className="space-y-3 p-3">
-                                <div className="flex items-start justify-between gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => openIssue(issue.id)}
-                                    aria-label={`Open ${issue.key}: ${issue.title}`}
-                                    className="min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                  >
-                                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                      <IssueTypeIcon issue={issue} />
-                                      {issue.key}
-                                    </span>
-                                    <span className="mt-2 line-clamp-2 block text-sm font-medium leading-5 text-foreground">
-                                      {issue.title}
-                                    </span>
-                                  </button>
-                                  <div className="flex shrink-0 items-center gap-1">
-                                    <Badge
-                                      variant="outline"
-                                      className={priorityStyles[issue.priority]}
-                                    >
-                                      {issue.priority.toLowerCase()}
-                                    </Badge>
-                                    <button
-                                      type="button"
-                                      {...dragProvided.dragHandleProps}
-                                      aria-label={`Drag ${issue.key}`}
-                                      className="inline-flex size-7 touch-none items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
-                                    >
-                                      <GripVertical
-                                        aria-hidden="true"
-                                        className="size-4"
-                                      />
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-                                  <div className="flex min-w-0 items-center gap-2">
-                                    {issue.assignee ? (
-                                      <Tooltip>
-                                        <TooltipTrigger
-                                          render={
-                                            <span
-                                              tabIndex={0}
-                                              aria-label={`Assigned to ${issue.assignee.name}`}
-                                              className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                            />
-                                          }
-                                        >
-                                          <Avatar size="sm">
-                                            <AvatarFallback
-                                              className="text-[0.6rem] font-semibold text-white"
-                                              style={{
-                                                backgroundColor:
-                                                  issue.assignee.avatarColor,
-                                              }}
-                                            >
-                                              {initials(issue.assignee.name)}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          {issue.assignee.name}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    ) : (
-                                      <span className="text-xs text-muted-foreground">
-                                        Unassigned
-                                      </span>
-                                    )}
-                                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                      <MessageCircle
-                                        aria-hidden="true"
-                                        className="size-3.5"
-                                      />
-                                      {issue.commentCount ?? 0}
-                                      <span className="sr-only">
-                                        comments
-                                      </span>
-                                    </span>
-                                  </div>
-                                  <Select
-                                    value={issue.status}
-                                    onValueChange={(nextStatus) => {
-                                      if (nextStatus === null) return;
-                                      const status = getIssueStatus(nextStatus);
-                                      if (status === null) return;
-                                      void moveIssue(
-                                        issue.id,
-                                        status,
-                                        board[status].length,
-                                      );
-                                    }}
-                                    disabled={movingIssueIds.has(issue.id)}
-                                  >
-                                    <SelectTrigger
-                                      size="sm"
-                                      aria-label={`Change ${issue.key} status`}
-                                      className="max-w-32"
-                                    >
-                                      <SelectValue>
-                                        {statusLabels[issue.status]}
-                                      </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {statuses.map((status) => (
-                                        <SelectItem
-                                          key={status.value}
-                                          value={status.value}
-                                        >
-                                          {status.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </CardContent>
-                            </Card>
+                            <BoardIssueCard
+                              issue={issue}
+                              dragHandleProps={dragProvided.dragHandleProps}
+                              isHighlighted={highlightedIssueIds.has(issue.id)}
+                              isMoving={movingIssueIds.has(issue.id)}
+                              onOpen={openIssue}
+                              onMoveToStatus={moveIssueToStatus}
+                            />
                           </div>
                         )}
                       </Draggable>

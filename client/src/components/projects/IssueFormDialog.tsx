@@ -67,9 +67,7 @@ function initials(name: string): string {
 
 function mapServerValidationError(
   error: unknown,
-  setError: ReturnType<
-    typeof useForm<IssueFormValues>
-  >["setError"],
+  setError: ReturnType<typeof useForm<IssueFormValues>>["setError"],
 ): string {
   if (!(error instanceof ApiError)) {
     return getFriendlyErrorMessage(error, "Unable to save this issue");
@@ -114,12 +112,11 @@ function mapServerValidationError(
   return getFriendlyErrorMessage(error, "Unable to save this issue");
 }
 
-function assigneeLabel(
-  assigneeId: string,
-  members: ProjectMember[],
-): string {
+function assigneeLabel(assigneeId: string, members: ProjectMember[]): string {
   if (!assigneeId) return "Unassigned";
-  return members.find((member) => member.id === assigneeId)?.name ?? "Unassigned";
+  return (
+    members.find((member) => member.id === assigneeId)?.name ?? "Unassigned"
+  );
 }
 
 export function IssueFormDialog({
@@ -167,7 +164,8 @@ export function IssueFormDialog({
     try {
       const payload = {
         title: values.title.trim(),
-        description: values.description.trim() || (isEditing ? null : undefined),
+        description:
+          values.description.trim() || (isEditing ? null : undefined),
         type: values.type,
         priority: values.priority,
         assigneeId: values.assigneeId || (isEditing ? null : undefined),
@@ -219,7 +217,9 @@ export function IssueFormDialog({
       </Button>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit issue" : "Create an issue"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "Edit issue" : "Create an issue"}
+          </DialogTitle>
           <DialogDescription>
             {isEditing
               ? `Update ${issue.key} and keep the project up to date.`
@@ -284,7 +284,11 @@ export function IssueFormDialog({
                 <Select
                   value={typeValue}
                   onValueChange={(value) => {
-                    if (value === "BUG" || value === "FEATURE" || value === "TASK") {
+                    if (
+                      value === "BUG" ||
+                      value === "FEATURE" ||
+                      value === "TASK"
+                    ) {
                       form.setValue("type", value, {
                         shouldDirty: true,
                         shouldValidate: true,

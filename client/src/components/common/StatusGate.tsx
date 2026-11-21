@@ -4,11 +4,7 @@ import type { ReactNode } from "react";
 import { Clock3 } from "lucide-react";
 import { useServiceStatus } from "@/providers/ServiceStatusProvider";
 
-export function StatusGate({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function StatusGate({ children }: { children: ReactNode }) {
   const { status } = useServiceStatus();
 
   return (

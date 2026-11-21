@@ -53,7 +53,8 @@ function initials(name: string): string {
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoading, pendingInvitationCount, logout, refreshUser } = useAuth();
+  const { user, isLoading, pendingInvitationCount, logout, refreshUser } =
+    useAuth();
   const userId = user?.id;
   const { status } = useServiceStatus();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -156,15 +157,11 @@ export function Navbar() {
                   </DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  render={<Link href="/dashboard" />}
-                >
+                <DropdownMenuItem render={<Link href="/dashboard" />}>
                   <LayoutDashboard aria-hidden="true" />
                   Dashboard
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  render={<Link href="/invitations" />}
-                >
+                <DropdownMenuItem render={<Link href="/invitations" />}>
                   <Bell aria-hidden="true" />
                   Invitations
                   {pendingInvitationCount > 0 && (
@@ -242,12 +239,11 @@ export function Navbar() {
                   >
                     <Icon aria-hidden="true" className="size-4" />
                     {label}
-                    {label === "Invitations" &&
-                      pendingInvitationCount > 0 && (
-                        <span className="ml-auto rounded-full bg-primary/20 px-2 py-0.5 text-xs text-indigo-300">
-                          {pendingInvitationCount}
-                        </span>
-                      )}
+                    {label === "Invitations" && pendingInvitationCount > 0 && (
+                      <span className="ml-auto rounded-full bg-primary/20 px-2 py-0.5 text-xs text-indigo-300">
+                        {pendingInvitationCount}
+                      </span>
+                    )}
                   </Link>
                 ))}
                 {!isLoading && user ? (

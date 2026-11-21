@@ -35,12 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface ProjectMember extends User {
   role: ProjectRole;
@@ -91,19 +86,27 @@ export function ProjectSettingsPanel({
 
   useEffect(() => {
     let active = true;
-    if (!canEdit) return () => { active = false; };
+    if (!canEdit)
+      return () => {
+        active = false;
+      };
 
     api
       .get<Invitation[]>(`/projects/${project.id}/invitations`)
       .then((items) => {
         if (active) {
-          setInvitations(items.filter((invitation) => invitation.status === "PENDING"));
+          setInvitations(
+            items.filter((invitation) => invitation.status === "PENDING"),
+          );
         }
       })
       .catch((error: unknown) => {
         if (active) {
           toast.error(
-            getFriendlyErrorMessage(error, "Unable to load project invitations"),
+            getFriendlyErrorMessage(
+              error,
+              "Unable to load project invitations",
+            ),
           );
         }
       })
@@ -171,7 +174,9 @@ export function ProjectSettingsPanel({
       toast.success("Member role updated");
       onUpdated();
     } catch (error) {
-      toast.error(getFriendlyErrorMessage(error, "Unable to update member role"));
+      toast.error(
+        getFriendlyErrorMessage(error, "Unable to update member role"),
+      );
     } finally {
       setPendingAction(null);
     }
@@ -181,7 +186,9 @@ export function ProjectSettingsPanel({
     setPendingAction(`remove-${memberId}`);
     try {
       await api.delete<void>(`/projects/${project.id}/members/${memberId}`);
-      toast.success(memberId === user?.id ? "You left the project" : "Member removed");
+      toast.success(
+        memberId === user?.id ? "You left the project" : "Member removed",
+      );
       if (memberId === user?.id) {
         onDeleted();
       } else {
@@ -206,7 +213,9 @@ export function ProjectSettingsPanel({
       );
       toast.success("Invitation revoked");
     } catch (error) {
-      toast.error(getFriendlyErrorMessage(error, "Unable to revoke invitation"));
+      toast.error(
+        getFriendlyErrorMessage(error, "Unable to revoke invitation"),
+      );
     } finally {
       setPendingAction(null);
     }
@@ -220,7 +229,10 @@ export function ProjectSettingsPanel({
 
   return (
     <Tabs defaultValue="general" className="mt-6">
-      <TabsList aria-label="Project settings sections" className="w-full sm:w-auto">
+      <TabsList
+        aria-label="Project settings sections"
+        className="w-full sm:w-auto"
+      >
         <TabsTrigger value="general" className="gap-2">
           <Shield aria-hidden="true" />
           General
@@ -242,7 +254,10 @@ export function ProjectSettingsPanel({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={(event) => void saveProject(event)} className="space-y-4">
+            <form
+              onSubmit={(event) => void saveProject(event)}
+              className="space-y-4"
+            >
               <div className="grid gap-2">
                 <Label htmlFor="settings-project-name">Project name</Label>
                 <Input
@@ -255,7 +270,9 @@ export function ProjectSettingsPanel({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="settings-project-description">Description</Label>
+                <Label htmlFor="settings-project-description">
+                  Description
+                </Label>
                 <textarea
                   id="settings-project-description"
                   value={description}
@@ -284,12 +301,14 @@ export function ProjectSettingsPanel({
             <CardHeader>
               <CardTitle className="text-red-200">Delete project</CardTitle>
               <CardDescription>
-                This permanently deletes the project, its issues, and its conversations.
+                This permanently deletes the project, its issues, and its
+                conversations.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                You&apos;ll be asked to confirm the project key before anything is removed.
+                You&apos;ll be asked to confirm the project key before anything
+                is removed.
               </p>
               <Button
                 type="button"
@@ -319,12 +338,18 @@ export function ProjectSettingsPanel({
                   </DialogHeader>
                   <div className="grid gap-2">
                     <Label htmlFor="delete-project-confirm">
-                      Type <span className="font-semibold text-foreground">{project.key}</span> to confirm
+                      Type{" "}
+                      <span className="font-semibold text-foreground">
+                        {project.key}
+                      </span>{" "}
+                      to confirm
                     </Label>
                     <Input
                       id="delete-project-confirm"
                       value={deleteConfirmation}
-                      onChange={(event) => setDeleteConfirmation(event.target.value)}
+                      onChange={(event) =>
+                        setDeleteConfirmation(event.target.value)
+                      }
                       autoComplete="off"
                       disabled={pendingAction !== null}
                     />
@@ -342,12 +367,16 @@ export function ProjectSettingsPanel({
                       type="button"
                       variant="destructive"
                       disabled={
-                        deleteConfirmation !== project.key || pendingAction !== null
+                        deleteConfirmation !== project.key ||
+                        pendingAction !== null
                       }
                       onClick={() => void deleteProject()}
                     >
                       {pendingAction === "delete-project" ? (
-                        <LoaderCircle aria-hidden="true" className="animate-spin" />
+                        <LoaderCircle
+                          aria-hidden="true"
+                          className="animate-spin"
+                        />
                       ) : (
                         <Trash2 aria-hidden="true" />
                       )}
@@ -389,10 +418,14 @@ export function ProjectSettingsPanel({
                       <p className="truncate text-sm font-medium">
                         {member.name}
                         {member.id === user?.id && (
-                          <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            (you)
+                          </span>
                         )}
                       </p>
-                      <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {member.email}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -413,7 +446,11 @@ export function ProjectSettingsPanel({
                         <option value="ADMIN">Admin</option>
                       </select>
                     ) : (
-                      <Badge variant={member.role === "OWNER" ? "default" : "secondary"}>
+                      <Badge
+                        variant={
+                          member.role === "OWNER" ? "default" : "secondary"
+                        }
+                      >
                         {member.role.toLowerCase()}
                       </Badge>
                     )}
@@ -438,7 +475,10 @@ export function ProjectSettingsPanel({
                         }
                       >
                         {pendingAction === `remove-${member.id}` ? (
-                          <LoaderCircle aria-hidden="true" className="animate-spin" />
+                          <LoaderCircle
+                            aria-hidden="true"
+                            className="animate-spin"
+                          />
                         ) : (
                           <UserMinus aria-hidden="true" />
                         )}
@@ -467,7 +507,8 @@ export function ProjectSettingsPanel({
             <CardHeader>
               <CardTitle>Invite a teammate</CardTitle>
               <CardDescription>
-                Send an invitation by email. They must accept it from their account.
+                Send an invitation by email. They must accept it from their
+                account.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -506,7 +547,10 @@ export function ProjectSettingsPanel({
                 <div className="flex items-end">
                   <Button type="submit" disabled={pendingAction !== null}>
                     {pendingAction === "invite" ? (
-                      <LoaderCircle aria-hidden="true" className="animate-spin" />
+                      <LoaderCircle
+                        aria-hidden="true"
+                        className="animate-spin"
+                      />
                     ) : (
                       <MailPlus aria-hidden="true" />
                     )}
@@ -531,9 +575,13 @@ export function ProjectSettingsPanel({
                 Pending invitations are visible to project owners and admins.
               </p>
             ) : loadingInvitations ? (
-              <p className="text-sm text-muted-foreground">Loading invitations…</p>
+              <p className="text-sm text-muted-foreground">
+                Loading invitations…
+              </p>
             ) : invitations.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pending invitations.</p>
+              <p className="text-sm text-muted-foreground">
+                No pending invitations.
+              </p>
             ) : (
               <ul className="divide-y divide-border/70">
                 {invitations.map((invitation) => (
@@ -542,7 +590,9 @@ export function ProjectSettingsPanel({
                     className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{invitation.email}</p>
+                      <p className="truncate text-sm font-medium">
+                        {invitation.email}
+                      </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Invited as {invitation.role.toLowerCase()}
                         {invitation.invitedBy
@@ -558,7 +608,10 @@ export function ProjectSettingsPanel({
                         onClick={() => void revokeInvitation(invitation.id)}
                       >
                         {pendingAction === `revoke-${invitation.id}` ? (
-                          <LoaderCircle aria-hidden="true" className="animate-spin" />
+                          <LoaderCircle
+                            aria-hidden="true"
+                            className="animate-spin"
+                          />
                         ) : (
                           <Trash2 aria-hidden="true" />
                         )}
