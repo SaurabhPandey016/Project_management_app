@@ -5,7 +5,7 @@ import {
   CodeXml,
   Mail,
 } from "lucide-react";
-import { ServiceStatusBadge } from "@/components/common/ServiceStatusBadge";
+import { StatusPill } from "@/components/common/StatusPill";
 import { Logo } from "@/components/layout/Logo";
 import { env } from "@/lib/env";
 
@@ -108,7 +108,7 @@ export function Footer() {
             Live availability for the API and database.
           </p>
           <div className="mt-4">
-            <ServiceStatusBadge />
+            <StatusPill />
           </div>
         </div>
       </div>

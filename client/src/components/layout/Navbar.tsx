@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   ChevronDown,
@@ -12,11 +12,13 @@ import {
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
+import { StatusPill } from "@/components/common/StatusPill";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -32,6 +34,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/layout/Logo";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { useServiceStatus } from "@/providers/ServiceStatusProvider";
 
 const navigation = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -50,8 +53,21 @@ function initials(name: string): string {
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoading, pendingInvitationCount, logout } = useAuth();
+  const { user, isLoading, pendingInvitationCount, logout, refreshUser } = useAuth();
+  const userId = user?.id;
+  const { status } = useServiceStatus();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!userId || status !== "live") return;
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshUser();
+      }
+    }, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, [refreshUser, status, userId]);
 
   async function handleLogout() {
     try {
@@ -101,6 +117,7 @@ export function Navbar() {
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          <StatusPill compact />
           <ThemeToggle />
           {!isLoading && user ? (
             <DropdownMenu>
@@ -130,12 +147,14 @@ export function Navbar() {
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <span className="block truncate">{user.name}</span>
-                  <span className="block truncate text-xs font-normal text-muted-foreground">
-                    {user.email}
-                  </span>
-                </DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <span className="block truncate">{user.name}</span>
+                    <span className="block truncate text-xs font-normal text-muted-foreground">
+                      {user.email}
+                    </span>
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   render={<Link href="/dashboard" />}
@@ -207,6 +226,9 @@ export function Navbar() {
                 </SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-1 px-4">
+                <div className="mb-2 border-b border-border pb-3">
+                  <StatusPill />
+                </div>
                 {navigation.map(({ label, href, icon: Icon }) => (
                   <Link
                     key={href}

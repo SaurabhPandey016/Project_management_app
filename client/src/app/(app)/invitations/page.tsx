@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Bell, Check, Clock3, X } from "lucide-react";
 import { toast } from "sonner";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { getFriendlyErrorMessage } from "@/lib/error-message";
 import type { Invitation } from "@/types/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +19,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
-  return error instanceof Error ? error.message : "Unable to load invitations";
+  return getFriendlyErrorMessage(error, "Unable to load invitations");
 }
 
 export default function InvitationsPage() {
@@ -50,6 +50,10 @@ export default function InvitationsPage() {
   }
 
   async function respond(invitationId: string, action: "accept" | "decline") {
+    const previousInvitations = invitations;
+    setInvitations((current) =>
+      current.filter((invitation) => invitation.id !== invitationId),
+    );
     setRespondingTo(invitationId);
     try {
       await api.post<void>(`/invitations/${invitationId}/${action}`);
@@ -58,6 +62,7 @@ export default function InvitationsPage() {
       );
       await Promise.all([loadInvitations(), refreshUser()]);
     } catch (requestError) {
+      setInvitations(previousInvitations);
       toast.error(getErrorMessage(requestError));
     } finally {
       setRespondingTo(null);

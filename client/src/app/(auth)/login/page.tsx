@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { TryDemoButton } from "@/components/common/TryDemoButton";
 import {
   Card,
   CardContent,
@@ -24,10 +26,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { StatusGate } from "@/components/common/StatusGate";
 import { useAuth } from "@/hooks/useAuth";
+import { useServiceStatus } from "@/providers/ServiceStatusProvider";
+import { ApiError } from "@/lib/api";
 
 const loginSchema = z.object({
-  email: z.email("Enter a valid email address"),
+  email: z.string().trim().pipe(z.email("Enter a valid email address")),
   password: z.string().min(1, "Enter your password"),
 });
 
@@ -35,22 +40,36 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { status } = useServiceStatus();
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 
   async function onSubmit(values: LoginValues) {
+    form.clearErrors("root.server");
     try {
-      await login(values.email, values.password);
+      await login(values.email.trim().toLowerCase(), values.password);
       toast.success("Welcome back");
       const next = new URLSearchParams(window.location.search).get("next");
       router.replace(next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to sign in",
-      );
+      const message =
+        error instanceof ApiError && error.status === 401
+          ? "Invalid email or password"
+          : error instanceof ApiError && error.status === 409
+            ? "An account with this email already exists"
+            : error instanceof Error
+              ? error.message
+              : "Unable to sign in";
+      if (error instanceof ApiError && error.status === 409) {
+        form.setError("email", { type: "server", message });
+      } else {
+        form.setError("root.server", { type: "server", message });
+      }
+      toast.error(message);
     }
   }
 
@@ -73,7 +92,8 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <Card className="mx-auto w-full max-w-md border-white/10 bg-card/80 shadow-2xl shadow-black/20 backdrop-blur">
+      <StatusGate>
+        <Card className="mx-auto w-full max-w-md border-white/10 bg-card/80 shadow-2xl shadow-black/20 backdrop-blur">
         <CardHeader className="space-y-2 pb-5">
           <p className="text-sm font-medium text-indigo-300">Welcome back</p>
           <CardTitle className="text-2xl">Sign in to IssueFlow</CardTitle>
@@ -109,18 +129,14 @@ export default function LoginPage() {
               </FormItem>
 
               <FormItem>
-                <div className="flex items-center justify-between gap-3">
-                  <FormLabel htmlFor="password">Password</FormLabel>
-                  <span className="text-xs text-muted-foreground">
-                    Forgot password?
-                  </span>
-                </div>
-                <FormControl>
+                <FormLabel htmlFor="password">Password</FormLabel>
+                <div className="relative">
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="Enter your password"
+                    className="pr-11"
                     aria-invalid={Boolean(form.formState.errors.password)}
                     aria-describedby={
                       form.formState.errors.password
@@ -129,24 +145,55 @@ export default function LoginPage() {
                     }
                     {...form.register("password")}
                   />
-                </FormControl>
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((visible) => !visible)}
+                  >
+                    {showPassword ? (
+                      <EyeOff aria-hidden="true" className="size-4" />
+                    ) : (
+                      <Eye aria-hidden="true" className="size-4" />
+                    )}
+                  </button>
+                </div>
                 <FormMessage id="password-error">
                   {form.formState.errors.password?.message}
                 </FormMessage>
               </FormItem>
 
+              {form.formState.errors.root?.server?.message && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {form.formState.errors.root.server.message}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <Button
                 type="submit"
                 className="h-11 w-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-400 hover:to-violet-400"
-                disabled={form.formState.isSubmitting}
+                disabled={form.formState.isSubmitting || status !== "live"}
               >
-                {form.formState.isSubmitting ? "Signing in..." : "Sign in"}
-                {!form.formState.isSubmitting && (
+                {status !== "live"
+                  ? "Waiting for the server"
+                  : form.formState.isSubmitting
+                    ? "Signing in..."
+                    : "Sign in"}
+                {status === "live" && !form.formState.isSubmitting && (
                   <ArrowRight aria-hidden="true" className="ml-auto" />
                 )}
               </Button>
             </form>
           </Form>
+          <div className="mt-3">
+            <TryDemoButton
+              variant="outline"
+              className="h-11 w-full"
+            />
+          </div>
           <Alert className="mt-5 border-white/8 bg-background/40">
             <ShieldCheck aria-hidden="true" />
             <AlertDescription>
@@ -163,7 +210,8 @@ export default function LoginPage() {
             </Link>
           </p>
         </CardContent>
-      </Card>
+        </Card>
+      </StatusGate>
     </section>
   );
 }

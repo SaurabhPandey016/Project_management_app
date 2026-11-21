@@ -13,6 +13,13 @@ export class ApiError extends Error {
 }
 
 const unauthorizedEvent = "issueflow:unauthorized";
+export const serviceFailureEvent = "issueflow:service-failure";
+
+function notifyServiceFailure(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(serviceFailureEvent));
+  }
+}
 
 function isApiFailure(value: unknown): value is ApiFailure {
   if (typeof value !== "object" || value === null || !("success" in value)) {
@@ -51,10 +58,12 @@ async function request<TData>(
   try {
     response = await fetch(`/api${path}`, {
       ...init,
+      cache: init.cache ?? "no-store",
       headers,
       credentials: "include",
     });
   } catch (error) {
+    notifyServiceFailure();
     throw new ApiError(
       error instanceof Error ? error.message : "Unable to reach the server",
       0,
@@ -62,6 +71,7 @@ async function request<TData>(
     );
   }
 
+  if ([502, 503, 504].includes(response.status)) notifyServiceFailure();
   if (response.status === 204) return undefined as TData;
 
   let body: unknown;

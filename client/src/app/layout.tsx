@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
+import { ServiceStatusBanner } from "@/components/common/ServiceStatusBanner";
 import { Toaster } from "@/components/ui/sonner";
 import { AppProviders } from "@/providers/AppProviders";
 import "./globals.css";
@@ -30,12 +31,16 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <AppProviders>
           <Navbar />
-          <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-16 pt-24 sm:px-6 lg:px-8">
+          <div className="pt-16">
+            <ServiceStatusBanner />
+          </div>
+          <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-16 pt-4 sm:px-6 lg:px-8">
             {children}
           </main>
           <Footer />

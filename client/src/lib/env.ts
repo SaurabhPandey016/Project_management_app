@@ -3,7 +3,7 @@ import { z } from "zod";
 const publicEnvironmentSchema = z.object({
   apiUrl: z.string().url(),
   socketUrl: z.string().url(),
-  demoVideoUrl: z.string(),
+  demoVideoUrl: z.union([z.literal(""), z.url()]),
   linkedInUrl: z.string().url(),
   githubUrl: z.string().url(),
   contactEmail: z.string().email(),

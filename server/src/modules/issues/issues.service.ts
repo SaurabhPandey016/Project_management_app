@@ -25,9 +25,17 @@ type IncludedIssue = Prisma.IssueGetPayload<{
   include: typeof issueInclude;
 }>;
 
-function serializeIssue(issue: IncludedIssue) {
-  const { project, ...data } = issue;
-  return { ...data, key: `${project.key}-${issue.number}` };
+function serializeIssue(
+  issue: IncludedIssue & {
+    _count?: { comments: number };
+  },
+) {
+  const { project, _count, ...data } = issue;
+  return {
+    ...data,
+    key: `${project.key}-${issue.number}`,
+    ...(_count === undefined ? {} : { commentCount: _count.comments }),
+  };
 }
 
 function buildFilterSql(
@@ -150,12 +158,18 @@ async function findFilteredIssueIds(
   };
 }
 
-async function getIssuesByOrderedIds(ids: string[]) {
+async function getIssuesByOrderedIds(
+  ids: string[],
+  includeCommentCount = false,
+) {
   if (ids.length === 0) return [];
 
   const issues = await prisma.issue.findMany({
     where: { id: { in: ids } },
-    include: issueInclude,
+    include: {
+      ...issueInclude,
+      ...(includeCommentCount ? { _count: { select: { comments: true } } } : {}),
+    },
   });
   const issueById = new Map(issues.map((issue) => [issue.id, issue]));
 
@@ -284,7 +298,7 @@ export async function getIssueBoard(
       WHEN 'DONE' THEN 2
     END ASC, i."position" ASC, i."id" ASC`,
   );
-  const issues = await getIssuesByOrderedIds(ids);
+  const issues = await getIssuesByOrderedIds(ids, true);
   const board: Record<IssueStatus, typeof issues> = {
     [IssueStatus.TODO]: [],
     [IssueStatus.IN_PROGRESS]: [],

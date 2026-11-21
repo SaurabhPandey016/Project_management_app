@@ -2,37 +2,40 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   CheckSquare,
   CircleDot,
   FolderKanban,
   Settings2,
-  UsersRound,
 } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
 import { issueTypeIcons, priorityStyles } from "@/lib/constants";
 import type {
   Issue,
   IssueStatus,
-  Project,
-  ProjectRole,
-  User,
 } from "@/types/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface ProjectDetails extends Project {
-  members: Array<User & { role: ProjectRole }>;
-}
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+} from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  ProjectSettingsPanel,
+  type ProjectWithMembers,
+} from "@/components/projects/ProjectSettingsPanel";
+import { NewIssueDialog } from "@/components/projects/NewIssueDialog";
+import { ProjectBoard } from "@/components/projects/ProjectBoard";
 
 interface IssueListResponse {
   items: Issue[];
@@ -65,33 +68,6 @@ function IssueTypeIcon({ type }: { type: Issue["type"] }) {
   return <Icon aria-hidden="true" className="size-3.5 shrink-0" />;
 }
 
-function IssueCard({ issue }: { issue: Issue }) {
-  return (
-    <Card className="border-white/8 bg-background/70 shadow-none">
-      <CardContent className="p-3.5">
-        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <IssueTypeIcon type={issue.type} />
-            {issue.key}
-          </span>
-          <Badge
-            variant="outline"
-            className={priorityStyles[issue.priority]}
-          >
-            {issue.priority.toLowerCase()}
-          </Badge>
-        </div>
-        <p className="mt-3 text-sm font-medium leading-5">{issue.title}</p>
-        {issue.assignee && (
-          <p className="mt-3 truncate text-xs text-muted-foreground">
-            Assigned to {issue.assignee.name}
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 export function ProjectWorkspace({
   projectId,
   view,
@@ -99,24 +75,23 @@ export function ProjectWorkspace({
   projectId: string;
   view: ProjectView;
 }) {
-  const [project, setProject] = useState<ProjectDetails | null>(null);
-  const [board, setBoard] = useState<Record<IssueStatus, Issue[]> | null>(null);
+  const router = useRouter();
+  const { user } = useAuth();
+  const [project, setProject] = useState<ProjectWithMembers | null>(null);
   const [issues, setIssues] = useState<IssueListResponse | null>(null);
+  const [boardRefreshKey, setBoardRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadProject = useCallback(() => {
     return api
-      .get<ProjectDetails>(`/projects/${projectId}`)
+      .get<ProjectWithMembers>(`/projects/${projectId}`)
       .then(async (details) => {
-        setProject(details);
-        if (view === "board") {
-          setBoard(
-            await api.get<Record<IssueStatus, Issue[]>>(
-              `/projects/${projectId}/board`,
-            ),
-          );
-        } else if (view === "list") {
+        const role =
+          details.members.find((member) => member.id === user?.id)?.role ??
+          (details.ownerId === user?.id ? "OWNER" : undefined);
+        setProject({ ...details, role });
+        if (view === "list") {
           setIssues(
             await api.get<IssueListResponse>(`/projects/${projectId}/issues`),
           );
@@ -124,7 +99,7 @@ export function ProjectWorkspace({
       })
       .catch((requestError: unknown) => setError(messageFor(requestError)))
       .finally(() => setIsLoading(false));
-  }, [projectId, view]);
+  }, [projectId, user?.id, view]);
 
   useEffect(() => {
     void loadProject();
@@ -181,12 +156,46 @@ export function ProjectWorkspace({
                 {project.description || "A shared place for your team's work."}
               </p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <UsersRound aria-hidden="true" className="size-4" />
-              <span>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <AvatarGroup aria-label={`${project.members.length} project members`}>
+                {project.members.slice(0, 5).map((member) => (
+                  <Avatar key={member.id} aria-label={member.name}>
+                    <AvatarFallback
+                      className="text-[0.65rem] font-semibold text-white"
+                      style={{ backgroundColor: member.avatarColor }}
+                    >
+                      {member.name
+                        .trim()
+                        .split(/\s+/)
+                        .slice(0, 2)
+                        .map((part) => part[0]?.toUpperCase() ?? "")
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {project.members.length > 5 && (
+                  <AvatarGroupCount>
+                    +{project.members.length - 5}
+                  </AvatarGroupCount>
+                )}
+              </AvatarGroup>
+              <span className="text-sm text-muted-foreground">
                 {project.members.length}{" "}
                 {project.members.length === 1 ? "member" : "members"}
               </span>
+              <NewIssueDialog
+                projectId={project.id}
+                members={project.members}
+                onCreated={() => {
+                  if (view === "board") {
+                    setBoardRefreshKey((key) => key + 1);
+                  } else if (view === "list") {
+                    setIsLoading(true);
+                    setError(null);
+                    void loadProject();
+                  }
+                }}
+              />
             </div>
           </div>
 
@@ -221,36 +230,13 @@ export function ProjectWorkspace({
             })}
           </nav>
 
-          {view === "board" && board && (
-            <div className="mt-6 grid items-start gap-4 md:grid-cols-3">
-              {statuses.map(({ value, label, color }) => (
-                <section key={value} aria-labelledby={`status-${value}`}>
-                  <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                    <h2
-                      id={`status-${value}`}
-                      className="flex items-center gap-2 text-sm font-semibold"
-                    >
-                      <span className={`size-2 rounded-full ${color}`} />
-                      {label}
-                    </h2>
-                    <span className="text-xs text-muted-foreground">
-                      {board[value].length}
-                    </span>
-                  </div>
-                  <div className="space-y-2.5 rounded-xl border border-border/70 bg-card/35 p-2.5">
-                    {board[value].length > 0 ? (
-                      board[value].map((issue) => (
-                        <IssueCard key={issue.id} issue={issue} />
-                      ))
-                    ) : (
-                      <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-                        No issues in this column.
-                      </p>
-                    )}
-                  </div>
-                </section>
-              ))}
-            </div>
+          {view === "board" && (
+            <ProjectBoard
+              key={project.id}
+              projectId={project.id}
+              members={project.members}
+              refreshKey={boardRefreshKey}
+            />
           )}
 
           {view === "list" && issues && (
@@ -307,62 +293,13 @@ export function ProjectWorkspace({
           )}
 
           {view === "settings" && (
-            <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.8fr]">
-              <Card className="border-white/8 bg-card/55">
-                <CardHeader>
-                  <CardTitle>Project details</CardTitle>
-                  <CardDescription>
-                    Basic information about this workspace.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Name</p>
-                    <p className="mt-1 text-sm font-medium">{project.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Project key</p>
-                    <p className="mt-1 text-sm font-medium">{project.key}</p>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <p className="text-xs text-muted-foreground">Description</p>
-                    <p className="mt-1 text-sm leading-6">
-                      {project.description || "No description"}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-white/8 bg-card/55">
-                <CardHeader>
-                  <CardTitle>Members</CardTitle>
-                  <CardDescription>
-                    People who can access this project.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    {project.members.map((member) => (
-                      <li
-                        key={member.id}
-                        className="flex items-center justify-between gap-3"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {member.name}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {member.email}
-                          </p>
-                        </div>
-                        <Badge variant="secondary">
-                          {member.role.toLowerCase()}
-                        </Badge>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
+            <ProjectSettingsPanel
+              project={project}
+              onUpdated={() => {
+                void loadProject();
+              }}
+              onDeleted={() => router.replace("/dashboard")}
+            />
           )}
 
         </>
