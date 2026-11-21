@@ -164,13 +164,67 @@ npm run socket:smoke
 
 ## Deploying to Render
 
-Create a Render **Web Service** for this repository:
+The repository includes a root [`render.yaml`](../render.yaml) Blueprint. You can apply it from Render’s dashboard or manually create a Web Service.
 
-1. Set **Root Directory** to `server`.
-2. Set **Build Command** to `npm install && npm run prisma:generate && npm run build`.
-3. Set **Start Command** to `npm run start`.
-4. Configure `NODE_ENV=production`, `DATABASE_URL`, `DIRECT_URL`, a secure random `JWT_SECRET`, `JWT_EXPIRES_IN`, and `CLIENT_URL` (the deployed client origin). Render supplies `PORT`; the server listens on it.
-5. Apply committed migrations with `npm run prisma:deploy` as the deployment migration step, before serving traffic.
-6. Configure the client’s rewrite and public API/socket URLs with the Render service origin.
+### Before opening Render
+
+1. Commit and push the server changes and Blueprint to the GitHub branch you plan to deploy. From the repository root, stage only the intended files:
+
+   ```bash
+   git add render.yaml README.md server/README.md server/package.json server/src/server.ts
+   git commit -m "chore: prepare server for Render"
+   git push origin <branch>
+   ```
+
+2. Have these values ready:
+   - Supabase pooled connection string for `DATABASE_URL`. Prefer the transaction pooler on port `6543` and include `pgbouncer=true&connection_limit=1`. If the URL already has query parameters, append the options with `&` rather than a second `?`.
+   - Supabase direct connection string for `DIRECT_URL`. If Prisma migrations fail during Render’s build with a network error, replace it with the Supabase **Session pooler** connection string on port `5432`; Render Free outbound networking is IPv4-only, while a direct database hostname may not be reachable.
+   - A unique random JWT secret of at least 32 characters. Generate one locally, for example:
+
+     ```bash
+     node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+     ```
+
+   - A syntactically valid temporary `CLIENT_URL` such as `https://your-client.vercel.app`. The server validates this value at startup. Update it to the real client origin after Vercel is deployed.
+
+### Dashboard steps: create a Web Service
+
+1. Sign in to [Render](https://dashboard.render.com/) and open the dashboard.
+2. Select **New +** → **Web Service**.
+3. If prompted, connect GitHub and grant Render access to the repository. Select `SaurabhPandey016/Project_management_app` and the branch you pushed.
+4. Configure the service:
+   - **Name:** `issueflow-api` (or another available name)
+   - **Root Directory:** `server`
+   - **Runtime:** `Node`
+   - **Build Command:** `npm ci && npm run build && npx prisma migrate deploy`
+   - **Start Command:** `npm start`
+   - **Instance Type:** `Free`
+5. Expand **Advanced** and set **Health Check Path** to `/api/health`.
+6. Under **Environment Variables**, add:
+
+   | Key              | Value                                                                                                                               |
+   | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+   | `NODE_ENV`       | `production`                                                                                                                        |
+   | `DATABASE_URL`   | Supabase pooled URL (port `6543`; append `?pgbouncer=true&connection_limit=1`, or use `&` if it already contains query parameters). |
+   | `DIRECT_URL`     | Supabase migration URL. Use the Session pooler on port `5432` if Render cannot reach the direct host.                               |
+   | `JWT_SECRET`     | The random secret generated locally.                                                                                                |
+   | `JWT_EXPIRES_IN` | `7d`                                                                                                                                |
+   | `CLIENT_URL`     | Temporary valid client origin; replace with the deployed Vercel origin after that app is available.                                 |
+
+   Render provides `PORT` automatically. Do not set it to `10000` manually. The API binds to `0.0.0.0` and uses the supplied `PORT`.
+
+7. Select **Create Web Service**. Follow the build and deploy log. The build runs `npm ci` (whose `postinstall` generates Prisma Client), compiles TypeScript into `dist/`, then applies migrations with `prisma migrate deploy`.
+8. When the service is **Live**, open `https://<service-name>.onrender.com/api/health` (replace `<service-name>` with the assigned Render hostname). Confirm the response has `"status":"ok"` and `"db":{"status":"up",...}`. If it reports `"down"`, inspect Render logs and confirm both database URLs and network reachability.
+9. After deploying the client to Vercel, change `CLIENT_URL` in Render to the exact Vercel origin (scheme and hostname, no trailing slash) and save/redeploy. The API uses this allowlist for credentialed CORS and Socket.IO origin checks.
+
+### Optional: apply the Blueprint
+
+Instead of entering the service configuration manually, select **New +** → **Blueprint**, connect the same repository/branch, and let Render find the root `render.yaml`. Review the `issueflow-api` service, enter values for the `sync: false` variables (`DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, and `CLIENT_URL`) when prompted, then apply. The Blueprint leaves `PORT` to Render and includes the build, start, free plan, and health-check settings above.
+
+### Optional: seed demo data
+
+The migration step creates the schema but does not insert sample data. If you want the demo project, run `npm run seed` once from Render Shell or locally with `DATABASE_URL` and `DIRECT_URL` pointed at the same database. The seed includes a demo login (`demo@issueflow.dev` / `Demo@12345`), so use it only when that database is intentionally a demo environment. Do not seed a production database unintentionally.
+
+Render Free services can sleep after inactivity. The client status banner is designed to explain that wake-up period.
 
 Do not run the seed against production unless intentionally creating demo data. Render free services can sleep after inactivity; the client status banner communicates this to visitors.

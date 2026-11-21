@@ -253,7 +253,7 @@ Free hosting plans may sleep after inactivity, and free database projects may pa
 ## Deployment summary
 
 - **Database:** create a PostgreSQL database and configure pooled `DATABASE_URL` plus direct `DIRECT_URL`.
-- **API (Render):** create a Node web service rooted at `server/`; build with `npm install && npm run prisma:generate && npm run build`, then start with `npm run start`. Configure the server environment and run `npm run prisma:deploy` as the deployment migration step.
+- **API (Render):** create a Node web service rooted at `server/`, or deploy the root `render.yaml` Blueprint. The configured build installs dependencies, generates Prisma Client through `postinstall`, compiles to `dist/`, and applies committed migrations; the start command runs `npm start`.
 - **Client (Vercel):** import the repository with `client/` as the project root, configure the client environment (including `BACKEND_URL` to the API origin), then build with `npm run build`.
 - Set the API `CLIENT_URL` to the deployed client origin. Configure the client’s public API/socket URLs to the API origin as well.
 

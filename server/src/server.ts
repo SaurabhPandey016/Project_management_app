@@ -43,8 +43,8 @@ httpServer.on("error", (error: Error) => {
   process.exitCode = 1;
 });
 
-httpServer.listen(env.PORT, () => {
-  logger.info({ port: env.PORT }, "API server listening");
+httpServer.listen(env.PORT, "0.0.0.0", () => {
+  logger.info({ port: env.PORT, host: "0.0.0.0" }, "API server listening");
 });
 
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
