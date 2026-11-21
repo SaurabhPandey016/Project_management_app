@@ -84,12 +84,14 @@ function buildFilterSql(
     for (const term of terms) {
       const search = `%${term}%`;
       const issueKey = /^([a-z]{2,5})-(\d+)$/i.exec(term);
+      const projectKey = issueKey?.[1];
+      const issueNumber = issueKey?.[2];
       const issueKeyMatch =
-        issueKey === null
+        projectKey === undefined || issueNumber === undefined
           ? Prisma.sql`FALSE`
           : Prisma.sql`(
-              UPPER(p."key") = ${issueKey[1].toUpperCase()}
-              AND i."number"::text ILIKE ${`%${issueKey[2]}%`}
+              UPPER(p."key") = ${projectKey.toUpperCase()}
+              AND i."number"::text ILIKE ${`%${issueNumber}%`}
             )`;
 
       conditions.push(
