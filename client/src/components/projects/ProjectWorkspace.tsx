@@ -13,6 +13,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
+import { matchesIssueSearch } from "@/lib/issue-search";
 import type { Issue, ProjectRole } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -89,12 +90,7 @@ function matchesListFilters(
     return false;
   if (filters.type.length > 0 && !filters.type.includes(issue.type))
     return false;
-  if (
-    filters.q &&
-    !`${issue.key} ${issue.number} ${issue.title} ${issue.description ?? ""}`
-      .toLocaleLowerCase()
-      .includes(filters.q.toLocaleLowerCase())
-  ) {
+  if (filters.q && !matchesIssueSearch(issue, filters.q)) {
     return false;
   }
   if (filters.assignee === "unassigned" && issue.assigneeId !== null)
@@ -207,6 +203,7 @@ export function ProjectWorkspace({
   const {
     filters,
     updateFilters,
+    updateSearch,
     clearFilters,
     activeFilterCount,
     listQuery,
@@ -486,6 +483,7 @@ export function ProjectWorkspace({
               showStatus={view === "list"}
               activeFilterCount={activeFilterCount}
               onChange={updateFilters}
+              onSearch={updateSearch}
               onClear={clearFilters}
             />
           )}

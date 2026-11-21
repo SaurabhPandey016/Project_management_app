@@ -162,6 +162,25 @@ export function useIssueFilters() {
     [pathname, router],
   );
 
+  const updateSearch = useCallback(
+    (value: string) => {
+      const currentParams = new URLSearchParams(pendingSearchString.current);
+      const queryValue = value.trim();
+      currentParams.delete("q");
+      currentParams.delete("page");
+      if (queryValue) currentParams.set("q", queryValue);
+
+      const query = currentParams.toString();
+      pendingSearchString.current = query;
+      window.history.replaceState(
+        null,
+        "",
+        query ? `${pathname}?${query}` : pathname,
+      );
+    },
+    [pathname],
+  );
+
   const clearFilters = useCallback(() => {
     const params = new URLSearchParams(pendingSearchString.current);
     for (const name of filterParamNames) params.delete(name);
@@ -184,6 +203,7 @@ export function useIssueFilters() {
   return {
     filters,
     updateFilters,
+    updateSearch,
     clearFilters,
     activeFilterCount,
     listQuery,

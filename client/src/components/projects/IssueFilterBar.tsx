@@ -61,7 +61,7 @@ function SearchInput({
   onChange: (value: string) => void;
 }) {
   const [draft, setDraft] = useState(value);
-  const debouncedDraft = useDebounce(draft, 300);
+  const debouncedDraft = useDebounce(draft, 150);
   const onChangeRef = useRef(onChange);
 
   useEffect(() => {
@@ -304,6 +304,7 @@ export function IssueFilterBar({
   showStatus = false,
   activeFilterCount,
   onChange,
+  onSearch,
   onClear,
 }: {
   filters: IssueFilters;
@@ -311,6 +312,7 @@ export function IssueFilterBar({
   showStatus?: boolean;
   activeFilterCount: number;
   onChange: (updates: IssueFilterUpdates) => void;
+  onSearch: (value: string) => void;
   onClear: () => void;
 }) {
   const controls = (
@@ -327,7 +329,7 @@ export function IssueFilterBar({
       <SearchInput
         key={filters.q}
         value={filters.q}
-        onChange={(q) => onChange({ q })}
+        onChange={onSearch}
       />
       <div className="hidden flex-wrap items-center gap-2 md:flex">
         {controls}

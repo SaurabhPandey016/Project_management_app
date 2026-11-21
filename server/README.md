@@ -135,7 +135,7 @@ Authentication uses an `httpOnly`, `sameSite=lax` cookie named `issueflow_token`
 | `GET`, `POST`            | `/api/projects/:projectId/issues/:issueId/comments` | Read comment tree or add a comment/reply. | Project member                                                                                |
 | `PATCH`, `DELETE`        | `/api/projects/:projectId/comments/:commentId`      | Edit or remove a comment.                 | Author to edit; author or project ADMIN/OWNER to delete                                       |
 
-Issue list and board filters support keyword `q`, comma-separated `status`, `priority`, and `type`, plus `assigneeId` (a user ID, `me`, or `unassigned`). List endpoints also accept `sortBy`, `order`, `page`, and `limit` (up to 100). Responses use the common envelope; issue lists return `data.items`, `data.total`, `data.page`, and `data.limit`.
+Issue list and board filters support case-insensitive, all-words keyword search `q` across issue titles, descriptions, and keys; comma-separated `status`, `priority`, and `type`; plus `assigneeId` (a user ID, `me`, or `unassigned`). PostgreSQL trigram indexes accelerate substring matching. List endpoints also accept `sortBy`, `order`, `page`, and `limit` (up to 100). Responses use the common envelope; issue lists return `data.items`, `data.total`, `data.page`, and `data.limit`.
 
 ## REST request examples
 

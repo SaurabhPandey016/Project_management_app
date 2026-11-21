@@ -80,15 +80,27 @@ function buildFilterSql(
   }
 
   if (query.q !== undefined) {
-    const search = `%${query.q}%`;
-    conditions.push(
-      Prisma.sql`(
-        i."title" ILIKE ${search}
-        OR COALESCE(i."description", '') ILIKE ${search}
-        OR i."number"::text ILIKE ${search}
-        OR (p."key" || '-' || i."number"::text) ILIKE ${search}
-      )`,
-    );
+    const terms = query.q.toLowerCase().split(/\s+/).filter(Boolean);
+    for (const term of terms) {
+      const search = `%${term}%`;
+      const issueKey = /^([a-z]{2,5})-(\d+)$/i.exec(term);
+      const issueKeyMatch =
+        issueKey === null
+          ? Prisma.sql`FALSE`
+          : Prisma.sql`(
+              UPPER(p."key") = ${issueKey[1].toUpperCase()}
+              AND i."number"::text ILIKE ${`%${issueKey[2]}%`}
+            )`;
+
+      conditions.push(
+        Prisma.sql`(
+          i."title" ILIKE ${search}
+          OR i."description" ILIKE ${search}
+          OR i."number"::text ILIKE ${search}
+          OR ${issueKeyMatch}
+        )`,
+      );
+    }
   }
 
   return Prisma.join(conditions, " AND ");
@@ -133,6 +145,7 @@ async function findFilteredIssueIds(
   userId: string,
   orderBy: Prisma.Sql,
   pagination?: { skip: number; take: number },
+  includeTotal = true,
 ): Promise<{ ids: string[]; total: number }> {
   const whereSql = buildFilterSql(projectId, query, userId);
   const [rows, countRows] = await Promise.all([
@@ -144,17 +157,19 @@ async function findFilteredIssueIds(
       ORDER BY ${orderBy}
       ${pagination === undefined ? Prisma.empty : Prisma.sql`OFFSET ${pagination.skip} LIMIT ${pagination.take}`}
     `,
-    prisma.$queryRaw<Array<{ total: bigint }>>`
-      SELECT COUNT(*)::bigint AS total
-      FROM "issues" i
-      INNER JOIN "projects" p ON p."id" = i."project_id"
-      WHERE ${whereSql}
-    `,
+    includeTotal
+      ? prisma.$queryRaw<Array<{ total: bigint }>>`
+          SELECT COUNT(*)::bigint AS total
+          FROM "issues" i
+          INNER JOIN "projects" p ON p."id" = i."project_id"
+          WHERE ${whereSql}
+        `
+      : Promise.resolve(null),
   ]);
 
   return {
     ids: rows.map((row) => row.id),
-    total: Number(countRows[0]?.total ?? 0n),
+    total: countRows === null ? 0 : Number(countRows[0]?.total ?? 0n),
   };
 }
 
@@ -299,6 +314,8 @@ export async function getIssueBoard(
       WHEN 'IN_PROGRESS' THEN 1
       WHEN 'DONE' THEN 2
     END ASC, i."position" ASC, i."id" ASC`,
+    undefined,
+    false,
   );
   const issues = await getIssuesByOrderedIds(ids, true);
   const board: Record<IssueStatus, typeof issues> = {

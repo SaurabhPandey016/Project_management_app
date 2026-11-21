@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ const registerSchema = z.object({
 type RegisterValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, user } = useAuth();
   const { status } = useServiceStatus();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -51,6 +51,12 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: { name: "", email: "", password: "" },
   });
+
+  useEffect(() => {
+    if (user !== null && !form.formState.isSubmitting) {
+      router.replace("/dashboard");
+    }
+  }, [form.formState.isSubmitting, router, user]);
 
   async function onSubmit(values: RegisterValues) {
     form.clearErrors("root.server");

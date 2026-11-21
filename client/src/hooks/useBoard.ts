@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/error-message";
+import { matchesIssueSearch } from "@/lib/issue-search";
 import type { Issue, IssueStatus } from "@/types/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjectSocket } from "@/hooks/useProjectSocket";
@@ -18,13 +19,8 @@ function matchesBoardQuery(
   currentUserId: string | undefined,
 ): boolean {
   const query = new URLSearchParams(queryString);
-  const search = query.get("q")?.trim().toLocaleLowerCase();
-  if (
-    search &&
-    !`${issue.key} ${issue.number} ${issue.title} ${issue.description ?? ""}`
-      .toLocaleLowerCase()
-      .includes(search)
-  ) {
+  const search = query.get("q") ?? "";
+  if (!matchesIssueSearch(issue, search)) {
     return false;
   }
 

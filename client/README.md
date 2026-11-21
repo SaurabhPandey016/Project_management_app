@@ -94,3 +94,5 @@ Login, registration, and demo actions are gated until the service is live. API n
 5. Verify the app, `GET /api/health`, cookie-based sign-in, and Socket.IO connection using the deployed origins.
 
 The API and database are deployed separately; see [`../server/README.md`](../server/README.md). Free-tier service sleep or database pause is expected to be communicated by the status UI rather than presented as a blank page.
+
+Issue search is case-insensitive, matches every word across issue titles, descriptions, and keys, and updates results without a full route navigation. The API uses PostgreSQL trigram indexes for substring matching.
