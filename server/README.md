@@ -196,7 +196,7 @@ The repository includes a root [`render.yaml`](../render.yaml) Blueprint. You ca
    - **Name:** `issueflow-api` (or another available name)
    - **Root Directory:** `server`
    - **Runtime:** `Node`
-   - **Build Command:** `npm ci && npm run build && npx prisma migrate deploy`
+   - **Build Command:** `npm ci --include=dev && npm run build && npx prisma migrate deploy`
    - **Start Command:** `npm start`
    - **Instance Type:** `Free`
 5. Expand **Advanced** and set **Health Check Path** to `/api/health`.
@@ -213,7 +213,7 @@ The repository includes a root [`render.yaml`](../render.yaml) Blueprint. You ca
 
    Render provides `PORT` automatically. Do not set it to `10000` manually. The API binds to `0.0.0.0` and uses the supplied `PORT`.
 
-7. Select **Create Web Service**. Follow the build and deploy log. The build runs `npm ci` (whose `postinstall` generates Prisma Client), compiles TypeScript into `dist/`, then applies migrations with `prisma migrate deploy`.
+7. Select **Create Web Service**. Follow the build and deploy log. The build runs `npm ci --include=dev` so TypeScript, Prisma CLI, and TypeScript declaration packages are installed even when `NODE_ENV=production`. The `postinstall` script generates Prisma Client; the build then compiles TypeScript into `dist/` and applies migrations with `prisma migrate deploy`.
 8. When the service is **Live**, open `https://<service-name>.onrender.com/api/health` (replace `<service-name>` with the assigned Render hostname). Confirm the response has `"status":"ok"` and `"db":{"status":"up",...}`. If it reports `"down"`, inspect Render logs and confirm both database URLs and network reachability.
 9. After deploying the client to Vercel, change `CLIENT_URL` in Render to the exact Vercel origin (scheme and hostname, no trailing slash) and save/redeploy. The API uses this allowlist for credentialed CORS and Socket.IO origin checks.
 
