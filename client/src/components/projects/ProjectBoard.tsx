@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   DragDropContext,
   Draggable,
@@ -24,23 +25,17 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useBoard } from "@/hooks/useBoard";
 import { issueTypeIcons, priorityStyles } from "@/lib/constants";
-import type { Issue, IssueStatus } from "@/types/domain";
+import type { Issue, IssueStatus, ProjectRole } from "@/types/domain";
 import type { ProjectMember } from "@/components/projects/ProjectSettingsPanel";
 import { NewIssueDialog } from "@/components/projects/NewIssueDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { IssueDrawer } from "@/components/projects/IssueDrawer";
 
 const statuses: Array<{
   value: IssueStatus;
@@ -92,58 +87,6 @@ function IssueTypeIcon({ issue }: { issue: Issue }) {
   return <Icon aria-hidden="true" className="size-3.5 shrink-0" />;
 }
 
-function IssuePreview({
-  issue,
-  open,
-  onOpenChange,
-}: {
-  issue: Issue | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto sm:max-w-lg">
-        {issue && (
-          <>
-            <SheetHeader className="border-b border-border/70 pr-14">
-              <SheetDescription className="flex items-center gap-2">
-                <IssueTypeIcon issue={issue} />
-                {issue.key}
-              </SheetDescription>
-              <SheetTitle className="text-xl">{issue.title}</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-6 p-4">
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">{statusLabels[issue.status]}</Badge>
-                <Badge
-                  variant="outline"
-                  className={priorityStyles[issue.priority]}
-                >
-                  {issue.priority.toLowerCase()}
-                </Badge>
-                <Badge variant="secondary">{issue.type.toLowerCase()}</Badge>
-              </div>
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold">Description</h3>
-                <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                  {issue.description || "No description provided."}
-                </p>
-              </section>
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold">Assignee</h3>
-                <p className="text-sm text-muted-foreground">
-                  {issue.assignee?.name ?? "Unassigned"}
-                </p>
-              </section>
-            </div>
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
-  );
-}
-
 function BoardSkeleton() {
   return (
     <div
@@ -168,15 +111,37 @@ function BoardSkeleton() {
 export function ProjectBoard({
   projectId,
   members,
+  role,
   refreshKey,
+  queryString,
 }: {
   projectId: string;
   members: ProjectMember[];
+  role: ProjectRole | undefined;
   refreshKey: number;
+  queryString: string;
 }) {
   const { board, isLoading, error, retry, moveIssue, movingIssueIds } =
-    useBoard(projectId, refreshKey);
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+    useBoard(projectId, refreshKey, queryString);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const selectedIssueId = searchParams.get("issue");
+
+  function openIssue(issueId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("issue", issueId);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  const closeIssue = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("issue");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [pathname, router, searchParams]);
 
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
@@ -296,7 +261,7 @@ export function ProjectBoard({
                                 <div className="flex items-start justify-between gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => setSelectedIssue(issue)}
+                                    onClick={() => openIssue(issue.id)}
                                     aria-label={`Open ${issue.key}: ${issue.title}`}
                                     className="min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                   >
@@ -427,13 +392,17 @@ export function ProjectBoard({
           ))}
         </div>
       </DragDropContext>
-      <IssuePreview
-        issue={selectedIssue}
-        open={selectedIssue !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedIssue(null);
-        }}
-      />
+      {selectedIssueId && (
+        <IssueDrawer
+          key={selectedIssueId}
+          projectId={projectId}
+          issueId={selectedIssueId}
+          role={role}
+          members={members}
+          onClose={closeIssue}
+          onChanged={() => void retry()}
+        />
+      )}
     </>
   );
 }

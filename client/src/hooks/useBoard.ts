@@ -44,7 +44,11 @@ function moveIssueInBoard(
   return next;
 }
 
-export function useBoard(projectId: string, refreshKey = 0) {
+export function useBoard(
+  projectId: string,
+  refreshKey = 0,
+  queryString = "",
+) {
   const [board, setBoard] = useState<IssueBoard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +65,9 @@ export function useBoard(projectId: string, refreshKey = 0) {
     setIsLoading(boardRef.current === null);
     setError(null);
     try {
-      const nextBoard = await api.get<IssueBoard>(`/projects/${projectId}/board`);
+      const nextBoard = await api.get<IssueBoard>(
+        `/projects/${projectId}/board${queryString ? `?${queryString}` : ""}`,
+      );
       if (requestId !== requestIdRef.current) return;
       boardRef.current = nextBoard;
       setBoard(nextBoard);
@@ -71,7 +77,7 @@ export function useBoard(projectId: string, refreshKey = 0) {
     } finally {
       if (requestId === requestIdRef.current) setIsLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, queryString]);
 
   useEffect(() => {
     void loadBoard();

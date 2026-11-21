@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   CheckSquare,
@@ -11,12 +11,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
-import { issueTypeIcons, priorityStyles } from "@/lib/constants";
-import type {
-  Issue,
-  IssueStatus,
-} from "@/types/domain";
-import { Badge } from "@/components/ui/badge";
+import type { Issue, ProjectRole } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,6 +31,9 @@ import {
 } from "@/components/projects/ProjectSettingsPanel";
 import { NewIssueDialog } from "@/components/projects/NewIssueDialog";
 import { ProjectBoard } from "@/components/projects/ProjectBoard";
+import { IssueFilterBar } from "@/components/projects/IssueFilterBar";
+import { ProjectIssueList } from "@/components/projects/ProjectIssueList";
+import { useIssueFilters } from "@/hooks/useIssueFilters";
 
 interface IssueListResponse {
   items: Issue[];
@@ -46,26 +44,17 @@ interface IssueListResponse {
 
 type ProjectView = "board" | "list" | "settings";
 
+const projectSkeletonColumns = ["TODO", "IN_PROGRESS", "DONE"] as const;
+
 const views: Array<{ label: string; href: string; view: ProjectView }> = [
   { label: "Board", href: "", view: "board" },
   { label: "List", href: "/list", view: "list" },
   { label: "Settings", href: "/settings", view: "settings" },
 ];
 
-const statuses: Array<{ value: IssueStatus; label: string; color: string }> = [
-  { value: "TODO", label: "To do", color: "bg-slate-400" },
-  { value: "IN_PROGRESS", label: "In progress", color: "bg-blue-400" },
-  { value: "DONE", label: "Done", color: "bg-emerald-400" },
-];
-
 function messageFor(error: unknown): string {
   if (error instanceof ApiError) return error.message;
   return error instanceof Error ? error.message : "Unable to load this project";
-}
-
-function IssueTypeIcon({ type }: { type: Issue["type"] }) {
-  const Icon = issueTypeIcons[type];
-  return <Icon aria-hidden="true" className="size-3.5 shrink-0" />;
 }
 
 export function ProjectWorkspace({
@@ -76,9 +65,28 @@ export function ProjectWorkspace({
   view: ProjectView;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
-  const [project, setProject] = useState<ProjectWithMembers | null>(null);
+  const {
+    filters,
+    updateFilters,
+    clearFilters,
+    activeFilterCount,
+    listQuery,
+    boardQuery,
+  } = useIssueFilters();
+  const [project, setProject] = useState<
+    (ProjectWithMembers & { role?: ProjectRole }) | null
+  >(null);
   const [issues, setIssues] = useState<IssueListResponse | null>(null);
+  const [resolvedIssueRequest, setResolvedIssueRequest] = useState<string | null>(
+    null,
+  );
+  const [issueListError, setIssueListError] = useState<{
+    request: string;
+    message: string;
+  } | null>(null);
+  const [issueListRefreshKey, setIssueListRefreshKey] = useState(0);
   const [boardRefreshKey, setBoardRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,30 +94,59 @@ export function ProjectWorkspace({
   const loadProject = useCallback(() => {
     return api
       .get<ProjectWithMembers>(`/projects/${projectId}`)
-      .then(async (details) => {
+      .then((details) => {
         const role =
           details.members.find((member) => member.id === user?.id)?.role ??
           (details.ownerId === user?.id ? "OWNER" : undefined);
         setProject({ ...details, role });
-        if (view === "list") {
-          setIssues(
-            await api.get<IssueListResponse>(`/projects/${projectId}/issues`),
-          );
-        }
       })
       .catch((requestError: unknown) => setError(messageFor(requestError)))
       .finally(() => setIsLoading(false));
-  }, [projectId, user?.id, view]);
+  }, [projectId, user?.id]);
 
   useEffect(() => {
     void loadProject();
   }, [loadProject]);
+
+  useEffect(() => {
+    if (view !== "list") return;
+    let active = true;
+    const request = `${projectId}:${listQuery}:${issueListRefreshKey}`;
+    api
+      .get<IssueListResponse>(`/projects/${projectId}/issues?${listQuery}`)
+      .then((response) => {
+        if (!active) return;
+        setIssues(response);
+        setResolvedIssueRequest(request);
+        setIssueListError(null);
+      })
+      .catch((requestError: unknown) => {
+        if (!active) return;
+        setIssueListError({ request, message: messageFor(requestError) });
+        setResolvedIssueRequest(request);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [issueListRefreshKey, listQuery, projectId, view]);
 
   function retryLoadingProject() {
     setIsLoading(true);
     setError(null);
     void loadProject();
   }
+
+  function refreshIssueList() {
+    setIssueListRefreshKey((key) => key + 1);
+  }
+  const issueListRequest = `${projectId}:${listQuery}:${issueListRefreshKey}`;
+  const isIssueListFetching =
+    view === "list" && resolvedIssueRequest !== issueListRequest;
+  const currentIssueListError =
+    issueListError?.request === issueListRequest
+      ? issueListError.message
+      : null;
 
   return (
     <section className="mx-auto w-full max-w-7xl">
@@ -118,8 +155,8 @@ export function ProjectWorkspace({
           <Skeleton className="h-10 w-64" />
           <Skeleton className="h-12 w-full rounded-xl" />
           <div className="grid gap-4 md:grid-cols-3">
-            {statuses.map(({ value }) => (
-              <Skeleton key={value} className="h-72 rounded-xl" />
+            {projectSkeletonColumns.map((column) => (
+              <Skeleton key={column} className="h-72 rounded-xl" />
             ))}
           </div>
         </div>
@@ -190,9 +227,7 @@ export function ProjectWorkspace({
                   if (view === "board") {
                     setBoardRefreshKey((key) => key + 1);
                   } else if (view === "list") {
-                    setIsLoading(true);
-                    setError(null);
-                    void loadProject();
+                    refreshIssueList();
                   }
                 }}
               />
@@ -204,7 +239,16 @@ export function ProjectWorkspace({
             className="mt-7 flex gap-1 overflow-x-auto border-b border-border/70"
           >
             {views.map((item) => {
-              const href = `/projects/${projectId}${item.href}`;
+              const params = new URLSearchParams(searchParams.toString());
+              if (item.view === "board") {
+                params.delete("status");
+                params.delete("sort");
+                params.delete("page");
+              }
+              const query = params.toString();
+              const href = `/projects/${projectId}${item.href}${
+                query ? `?${query}` : ""
+              }`;
               const isActive = item.view === view;
               return (
                 <Link
@@ -230,66 +274,41 @@ export function ProjectWorkspace({
             })}
           </nav>
 
+          {(view === "board" || view === "list") && (
+            <IssueFilterBar
+              filters={filters}
+              members={project.members}
+              showStatus={view === "list"}
+              activeFilterCount={activeFilterCount}
+              onChange={updateFilters}
+              onClear={clearFilters}
+            />
+          )}
+
           {view === "board" && (
             <ProjectBoard
               key={project.id}
               projectId={project.id}
               members={project.members}
+              role={project.role}
               refreshKey={boardRefreshKey}
+              queryString={boardQuery}
             />
           )}
 
-          {view === "list" && issues && (
-            <section className="mt-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold">All issues</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {issues.total} {issues.total === 1 ? "issue" : "issues"}
-                  </p>
-                </div>
-                <Badge variant="secondary">Page {issues.page}</Badge>
-              </div>
-              {issues.items.length === 0 ? (
-                <Card className="border-dashed border-white/15 bg-card/35">
-                  <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                    No issues have been created in this project yet.
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="overflow-hidden rounded-xl border border-border/70">
-                  <ul className="divide-y divide-border/70">
-                    {issues.items.map((issue) => (
-                      <li
-                        key={issue.id}
-                        className="flex flex-wrap items-center justify-between gap-3 bg-card/35 px-4 py-3.5 sm:px-5"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className="text-xs text-muted-foreground">
-                            {issue.key}
-                          </span>
-                          <IssueTypeIcon type={issue.type} />
-                          <span className="truncate text-sm font-medium">
-                            {issue.title}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">
-                            {issue.status.replace("_", " ").toLowerCase()}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className={priorityStyles[issue.priority]}
-                          >
-                            {issue.priority.toLowerCase()}
-                          </Badge>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </section>
+          {view === "list" && project && (
+            <ProjectIssueList
+              projectId={project.id}
+              members={project.members}
+              role={project.role}
+              issues={issues}
+              isFetching={isIssueListFetching}
+              error={currentIssueListError}
+              onPageChange={(page) => updateFilters({ page })}
+              onRetry={refreshIssueList}
+              onClearFilters={clearFilters}
+              onChanged={refreshIssueList}
+            />
           )}
 
           {view === "settings" && (
